@@ -13,9 +13,9 @@ docker compose up --build
 
 Services:
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- OpenAPI: http://localhost:8000/api/v1/docs
+- Frontend: 
+- Backend API:
+- OpenAPI: 
 
 Demo credentials:
 
