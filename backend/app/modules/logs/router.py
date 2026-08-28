@@ -5,12 +5,13 @@ import json
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_permissions
 from app.db.models import AuditLog, SecurityLog
 from app.db.session import get_db
 from app.schemas.modules import LogCreate, LogRead
 from app.services.security_detection import analyze_text
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permissions("logs:read"))])
 
 
 @router.get("", response_model=list[LogRead])
@@ -65,4 +66,3 @@ def upload_logs(file: UploadFile = File(...), db: Session = Depends(get_db)) -> 
     db.add(AuditLog(actor="api", action="upload", entity="logs", metadata_json={"file": file.filename, "count": created}))
     db.commit()
     return {"success": True, "data": {"created": created, "filename": file.filename}}
-

@@ -60,6 +60,16 @@ class SessionToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jti: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    token_type: Mapped[str] = mapped_column(String(20), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class SecurityLog(Base):
     __tablename__ = "logs"
 
@@ -97,6 +107,17 @@ class Detection(Base):
     severity: Mapped[str] = mapped_column(String(20))
     pattern: Mapped[str] = mapped_column(Text)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class DetectionSuppression(Base):
+    __tablename__ = "detection_suppressions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    signature_name: Mapped[str] = mapped_column(String(160), index=True)
+    source: Mapped[str] = mapped_column(String(120), index=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Incident(Base):
@@ -154,6 +175,33 @@ class VulnerabilityReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ScanSchedule(Base):
+    __tablename__ = "scan_schedules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    target: Mapped[str] = mapped_column(String(255), index=True)
+    cadence: Mapped[str] = mapped_column(String(80), default="weekly")
+    scan_type: Mapped[str] = mapped_column(String(80), default="nmap")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_status: Mapped[str] = mapped_column(String(80), default="scheduled")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ThreatIntelIndicator(Base):
+    __tablename__ = "threat_intel_indicators"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    indicator: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    indicator_type: Mapped[str] = mapped_column(String(40), index=True)
+    reputation: Mapped[str] = mapped_column(String(40), index=True)
+    confidence: Mapped[int] = mapped_column(Integer, default=0)
+    sources: Mapped[list[str]] = mapped_column(JSON, default=list)
+    mitre: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    watched: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Report(Base):
     __tablename__ = "reports"
 
@@ -204,4 +252,3 @@ class SystemSetting(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     value: Mapped[dict] = mapped_column(JSON, default=dict)
-

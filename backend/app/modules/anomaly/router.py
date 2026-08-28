@@ -1,6 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-router = APIRouter()
+from app.core.deps import require_permissions
+from app.schemas.modules import TrainingRequest
+from app.services.anomaly import predict_anomaly, train_model
+
+router = APIRouter(dependencies=[Depends(require_permissions("alerts:read"))])
 
 
 @router.get("")
@@ -14,7 +18,9 @@ def anomalies() -> dict:
 
 @router.post("/predict")
 def predict(payload: dict) -> dict:
-    events = payload.get("events", [])
-    score = min(100, 45 + len(events) * 8)
-    return {"success": True, "data": {"risk_score": score, "is_anomaly": score > 70, "model": "IsolationForest"}}
+    return {"success": True, "data": predict_anomaly(payload.get("events", []))}
 
+
+@router.post("/train")
+def train(payload: TrainingRequest) -> dict:
+    return {"success": True, "data": train_model(payload.samples)}

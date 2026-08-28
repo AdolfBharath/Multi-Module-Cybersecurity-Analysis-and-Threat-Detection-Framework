@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -23,6 +24,7 @@ def create_token(subject: str, expires_delta: timedelta, token_type: str, extra:
     payload: dict[str, Any] = {
         "sub": subject,
         "type": token_type,
+        "jti": str(uuid4()),
         "iat": int(now.timestamp()),
         "exp": int((now + expires_delta).timestamp()),
     }
@@ -43,3 +45,9 @@ def create_access_token(subject: str, role: str) -> str:
 def create_refresh_token(subject: str) -> str:
     return create_token(subject, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS), "refresh")
 
+
+def decode_token(token: str) -> dict[str, Any]:
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError as exc:
+        raise ValueError("Invalid or expired token") from exc

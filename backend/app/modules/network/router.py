@@ -1,10 +1,12 @@
+import psutil
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_permissions
 from app.db.models import NetworkEvent
 from app.db.session import get_db
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permissions("dashboard:read"))])
 
 
 @router.get("")
@@ -15,5 +17,25 @@ def network_events(db: Session = Depends(get_db)) -> dict:
 
 @router.get("/stats")
 def stats() -> dict:
-    return {"success": True, "data": {"bandwidth": 824, "connections": 1288, "protocols": [{"name": "HTTPS", "value": 62}, {"name": "DNS", "value": 18}, {"name": "SSH", "value": 9}, {"name": "Other", "value": 11}], "ports": [443, 53, 22, 3389, 8080]}}
+    counters = psutil.net_io_counters()
+    connections = psutil.net_connections(kind="inet")
+    ports = sorted({conn.laddr.port for conn in connections if conn.laddr})[:10]
+    return {"success": True, "data": {"bandwidth": counters.bytes_sent + counters.bytes_recv, "connections": len(connections), "protocols": [{"name": "TCP/UDP", "value": len(connections)}], "ports": ports}}
 
+
+@router.get("/connections")
+def connections() -> dict:
+    rows = []
+    for conn in psutil.net_connections(kind="inet")[:100]:
+        rows.append(
+            {
+                "fd": conn.fd,
+                "family": str(conn.family),
+                "type": str(conn.type),
+                "local": f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "",
+                "remote": f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "",
+                "status": conn.status,
+                "pid": conn.pid,
+            }
+        )
+    return {"success": True, "data": rows}

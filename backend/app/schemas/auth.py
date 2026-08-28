@@ -43,3 +43,20 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8)
 
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(min_length=20)
+
+
+class LogoutRequest(BaseModel):
+    access_token: str | None = None
+    refresh_token: str | None = None
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    token: str
+
+
+class MfaVerifyRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=8)

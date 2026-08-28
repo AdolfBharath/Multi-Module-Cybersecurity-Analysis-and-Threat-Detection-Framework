@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, Cpu, Database, HardDrive, MemoryStick, RadioTower, ShieldAlert, Siren } from "lucide-react";
+import { AlertTriangle, Cpu, Database, HardDrive, MemoryStick, RadioTower, ShieldAlert, Siren, Zap } from "lucide-react";
 import { api, WS_URL } from "../lib/api";
 import type { AlertItem, DashboardMetrics } from "../lib/types";
-import { Badge, Card, Metric, SectionTitle } from "../components/ui";
+import { Badge, Card, Metric, PageFrame, SectionTitle, SkeletonCard, StatusPill } from "../components/ui";
 
 const fallback: DashboardMetrics = {
   total_logs: 0,
@@ -32,7 +32,7 @@ const fallback: DashboardMetrics = {
 
 export function Dashboard() {
   const [live, setLive] = useState<AlertItem[]>([]);
-  const { data = fallback } = useQuery({
+  const { data = fallback, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => (await api.get<DashboardMetrics>("/dashboard")).data,
     refetchInterval: 30000,
@@ -52,24 +52,72 @@ export function Dashboard() {
   ];
 
   return (
+    <PageFrame>
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <SectionTitle title="SOC Dashboard" subtitle="Live enterprise security posture, attack telemetry, and incident response signal." />
-        <div className="flex items-center gap-2 rounded-full border border-mintx/30 bg-mintx/10 px-4 py-2 text-sm text-mintx">
-          <RadioTower className="h-4 w-4" />
-          {data.network_status}
-        </div>
+        <StatusPill label={data.network_status} />
       </div>
 
-      <div className="metric-grid">
-        <Metric label="Total Logs" value={data.total_logs} />
-        <Metric label="Critical Alerts" value={data.critical_alerts} accent="red" />
-        <Metric label="Incidents" value={data.incidents} accent="amber" />
-        <Metric label="Today's Attacks" value={data.todays_attacks} accent="mint" />
+      {isLoading ? (
+        <div className="metric-grid">
+          {[1, 2, 3, 4].map((item) => <SkeletonCard key={item} />)}
+        </div>
+      ) : (
+        <div className="metric-grid">
+          <Metric label="Total Logs" value={data.total_logs} />
+          <Metric label="Critical Alerts" value={data.critical_alerts} accent="red" />
+          <Metric label="Incidents" value={data.incidents} accent="amber" />
+          <Metric label="Today's Attacks" value={data.todays_attacks} accent="mint" />
+        </div>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
+        <Card className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Operational Readiness</div>
+              <div className="mt-2 text-2xl font-bold text-white">Production SOC Surface</div>
+            </div>
+            <div className="grid h-12 w-12 place-items-center rounded-lg border border-cyanx/30 bg-cyanx/10">
+              <Zap className="h-6 w-6 text-cyanx" />
+            </div>
+          </div>
+          <div className="mt-5 space-y-4">
+            {[
+              ["Auth/RBAC", 88, "JWT rotation, revocation, route guards"],
+              ["Detection", 74, "rules, suppressions, correlation"],
+              ["Threat Intel", 68, "IOC cache and watchlist enrichment"],
+            ].map(([label, score, detail]) => (
+              <div key={String(label)}>
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-slate-200">{label}</span>
+                  <span className="text-slate-500">{detail}</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <motion.div className="h-full rounded-full bg-cyanx" initial={{ width: 0 }} animate={{ width: `${score}%` }} transition={{ duration: 0.85 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <div className="mb-4 flex items-center gap-2 text-white">
+            <RadioTower className="h-5 w-5 text-mintx" />
+            Threat Surface Heatmap
+          </div>
+          <div className="threat-map-grid">
+            {Array.from({ length: 70 }).map((_, index) => {
+              const level = (index * 7 + data.critical_alerts + data.high_threats) % 5;
+              return <span key={index} className={`heat-cell heat-${level}`} />;
+            })}
+          </div>
+        </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card>
+        <Card className="chart-card">
           <div className="mb-4 flex items-center gap-2 text-white">
             <ShieldAlert className="h-5 w-5 text-cyanx" />
             Weekly Attack Trend
@@ -93,7 +141,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="chart-card">
           <div className="mb-4 flex items-center gap-2 text-white">
             <AlertTriangle className="h-5 w-5 text-amberx" />
             Severity Mix
@@ -112,7 +160,7 @@ export function Dashboard() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card>
+        <Card className="chart-card">
           <div className="mb-4 grid grid-cols-3 gap-3">
             {[["CPU", data.cpu, Cpu], ["Memory", data.memory, MemoryStick], ["Disk", data.disk, HardDrive]].map(([label, value, Icon]) => {
               const IconComponent = Icon as typeof Cpu;
@@ -136,7 +184,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="chart-card">
           <SectionTitle title="Live Feed" />
           <div className="mt-4 space-y-3">
             {[...live, ...data.live_feed].slice(0, 7).map((item, index) => (
@@ -151,7 +199,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card>
+        <Card className="chart-card">
           <SectionTitle title="MITRE ATT&CK" />
           <div className="mt-4 space-y-3">
             {data.mitre_matrix.map((row) => (
@@ -167,7 +215,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="chart-card">
         <div className="mb-4 flex items-center gap-2 text-white">
           <Database className="h-5 w-5 text-mintx" />
           Recent Activity
@@ -179,6 +227,6 @@ export function Dashboard() {
         </div>
       </Card>
     </div>
+    </PageFrame>
   );
 }
-

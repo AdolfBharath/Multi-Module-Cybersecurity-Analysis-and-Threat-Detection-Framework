@@ -94,3 +94,44 @@ class DetectionResult(BaseModel):
     risk_score: float
     recommendations: list[str]
 
+
+class RuleCreate(BaseModel):
+    name: str
+    category: str
+    severity: str
+    pattern: str
+    enabled: bool = True
+
+
+class SuppressionCreate(BaseModel):
+    signature_name: str
+    source: str
+    reason: str = ""
+
+
+class ReportGenerateRequest(BaseModel):
+    name: str = "SOC Report"
+    report_type: str = "executive"
+    format: str = "pdf"
+
+
+class ScanRequest(BaseModel):
+    target: str = "127.0.0.1"
+    scan_type: str = "nmap"
+    execute: bool = False
+
+
+class ScheduleRequest(BaseModel):
+    target: str
+    cadence: str = "weekly"
+    scan_type: str = "nmap"
+
+
+class IntelLookupRequest(BaseModel):
+    indicator: str
+    indicator_type: str = "ip"
+    watch: bool = False
+
+
+class TrainingRequest(BaseModel):
+    samples: list[dict] = Field(default_factory=list)

@@ -14,5 +14,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export type ApiEnvelope<T> = { success: boolean; data: T };
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    const refreshToken = localStorage.getItem("cybershield_refresh_token");
+    if (error.response?.status === 401 && refreshToken && !original.__retried) {
+      original.__retried = true;
+      const refreshed = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
+      localStorage.setItem("cybershield_token", refreshed.data.access_token);
+      localStorage.setItem("cybershield_refresh_token", refreshed.data.refresh_token);
+      original.headers.Authorization = `Bearer ${refreshed.data.access_token}`;
+      return api(original);
+    }
+    return Promise.reject(error);
+  },
+);
 
+export type ApiEnvelope<T> = { success: boolean; data: T };

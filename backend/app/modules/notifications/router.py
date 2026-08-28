@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_permissions
 from app.db.models import Notification
 from app.db.session import get_db
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permissions("dashboard:read"))])
 
 
 @router.get("")
@@ -16,4 +17,3 @@ def notifications(db: Session = Depends(get_db)) -> dict:
 @router.post("/test")
 def test_notification(payload: dict) -> dict:
     return {"success": True, "data": {"channel": payload.get("channel", "browser"), "status": "queued"}}
-

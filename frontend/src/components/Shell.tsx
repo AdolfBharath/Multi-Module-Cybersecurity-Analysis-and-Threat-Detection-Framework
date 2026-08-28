@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Activity,
   Bell,
@@ -45,9 +46,9 @@ export function Shell() {
     <div className="min-h-screen cyber-grid">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-line bg-abyss/86 p-4 backdrop-blur-xl lg:block">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-cyanx/40 bg-cyanx/15">
+          <motion.div initial={{ rotate: -8, scale: 0.92 }} animate={{ rotate: 0, scale: 1 }} className="flex h-11 w-11 items-center justify-center rounded-lg border border-cyanx/40 bg-cyanx/15">
             <Shield className="h-6 w-6 text-cyanx" />
-          </div>
+          </motion.div>
           <div>
             <div className="text-lg font-bold text-white">CyberShield XDR</div>
             <div className="text-xs text-slate-400">Enterprise SOC Platform</div>
@@ -60,7 +61,7 @@ export function Shell() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  "flex h-10 items-center gap-3 rounded-md px-3 text-sm text-slate-300 transition hover:bg-white/7 hover:text-white",
+                  "nav-item flex h-10 items-center gap-3 rounded-md px-3 text-sm text-slate-300 transition hover:bg-white/7 hover:text-white",
                   isActive && "border border-cyanx/25 bg-cyanx/13 text-cyan-50 shadow-glow",
                 )
               }
@@ -80,6 +81,7 @@ export function Shell() {
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden items-center gap-2 rounded-full border border-mintx/30 bg-mintx/10 px-3 py-1.5 text-xs text-mintx md:flex">
+                <span className="status-pulse h-2 w-2 rounded-full bg-mintx" />
                 <Activity className="h-3.5 w-3.5" />
                 Live telemetry
               </div>
@@ -90,7 +92,20 @@ export function Shell() {
               <button
                 className="rounded-md border border-line p-2 text-slate-300 hover:bg-white/7"
                 title="Sign out"
-                onClick={() => {
+                onClick={async () => {
+                  const accessToken = localStorage.getItem("cybershield_token");
+                  const refreshToken = localStorage.getItem("cybershield_refresh_token");
+                  try {
+                    if (accessToken) {
+                      await fetch(`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1"}/auth/logout`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+                      });
+                    }
+                  } catch {
+                    // Local session cleanup still happens if the backend is unavailable.
+                  }
                   localStorage.clear();
                   navigate("/login");
                 }}
@@ -100,11 +115,10 @@ export function Shell() {
             </div>
           </div>
         </header>
-        <div className="p-4 lg:p-8">
+        <motion.div className="p-4 lg:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
           <Outlet />
-        </div>
+        </motion.div>
       </main>
     </div>
   );
 }
-

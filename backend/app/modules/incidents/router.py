@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_permissions
 from app.db.models import AuditLog, Incident
 from app.db.session import get_db
 from app.schemas.modules import IncidentCreate, IncidentRead
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permissions("incidents:read"))])
 
 
 @router.get("", response_model=list[IncidentRead])
@@ -21,4 +22,3 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)) -> I
     db.commit()
     db.refresh(incident)
     return incident
-

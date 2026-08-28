@@ -8,7 +8,9 @@ from slowapi.util import get_remote_address
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.errors import api_error_handler, rate_limit_handler
+from app.db.models import AuditLog
 from app.db.session import Base, engine
+from app.db.session import SessionLocal
 from app.seed import seed_database
 
 limiter = Limiter(key_func=get_remote_address)
@@ -34,6 +36,25 @@ def create_app() -> FastAPI:
     )
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+    @app.middleware("http")
+    async def audit_requests(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith(settings.API_V1_PREFIX) and not request.url.path.endswith("/health"):
+            db = SessionLocal()
+            try:
+                db.add(
+                    AuditLog(
+                        actor=request.headers.get("x-api-actor", "api"),
+                        action=f"{request.method} {response.status_code}",
+                        entity=request.url.path,
+                        metadata_json={"client": request.client.host if request.client else ""},
+                    )
+                )
+                db.commit()
+            finally:
+                db.close()
+        return response
+
     @app.on_event("startup")
     def startup() -> None:
         Base.metadata.create_all(bind=engine)
@@ -43,4 +64,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-

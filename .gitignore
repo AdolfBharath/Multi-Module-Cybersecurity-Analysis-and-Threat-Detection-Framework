@@ -33,3 +33,4 @@ Thumbs.db
 *.sqlite3
 reports/generated/
 uploads/
+.codex_ppt_work/

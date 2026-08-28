@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.deps import require_permissions
 from app.db.models import SystemSetting
 from app.db.session import get_db
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_permissions("dashboard:read"))])
 
 
 @router.get("")
@@ -23,4 +24,3 @@ def update_setting(key: str, payload: dict, db: Session = Depends(get_db)) -> di
         db.add(row)
     db.commit()
     return {"success": True, "data": {key: payload}}
-

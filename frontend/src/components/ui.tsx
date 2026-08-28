@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { cn, severityClass } from "../lib/utils";
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("glass rounded-lg p-4", className)}>{children}</div>;
+  return <div className={cn("glass card-lift rounded-lg p-4", className)}>{children}</div>;
 }
 
 export function Button(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -33,9 +33,20 @@ export function Badge({ severity, children }: { severity?: string; children: Rea
 export function Metric({ label, value, accent = "cyan" }: { label: string; value: string | number; accent?: "cyan" | "mint" | "amber" | "red" }) {
   const color = { cyan: "text-cyanx", mint: "text-mintx", amber: "text-amberx", red: "text-dangerx" }[accent];
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-lg p-4">
-      <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</div>
-      <div className={cn("mt-3 text-3xl font-bold", color)}>{value}</div>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="glass card-lift animated-panel rounded-lg p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{label}</div>
+        <span className={cn("h-2 w-2 rounded-full", accent === "red" ? "bg-dangerx" : accent === "amber" ? "bg-amberx" : accent === "mint" ? "bg-mintx" : "bg-cyanx")} />
+      </div>
+      <div className={cn("mt-3 text-3xl font-bold tabular-nums", color)}>{value}</div>
+      <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/10">
+        <motion.div
+          initial={{ width: "12%" }}
+          animate={{ width: `${Math.max(18, Math.min(100, Number(value) || 42))}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className={cn("h-full rounded-full", accent === "red" ? "bg-dangerx" : accent === "amber" ? "bg-amberx" : accent === "mint" ? "bg-mintx" : "bg-cyanx")}
+        />
+      </div>
     </motion.div>
   );
 }
@@ -45,6 +56,33 @@ export function SectionTitle({ title, subtitle }: { title: string; subtitle?: st
     <div>
       <h2 className="text-xl font-semibold text-white">{title}</h2>
       {subtitle ? <p className="mt-1 text-sm text-slate-400">{subtitle}</p> : null}
+    </div>
+  );
+}
+
+export function PageFrame({ children }: { children: ReactNode }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.32, ease: "easeOut" }}>
+      {children}
+    </motion.div>
+  );
+}
+
+export function SkeletonCard() {
+  return (
+    <div className="glass rounded-lg p-4">
+      <div className="skeleton h-5 w-28 rounded" />
+      <div className="skeleton mt-5 h-8 w-44 rounded" />
+      <div className="skeleton mt-4 h-20 rounded" />
+    </div>
+  );
+}
+
+export function StatusPill({ label }: { label: string }) {
+  return (
+    <div className="status-pill flex items-center gap-2 rounded-full border border-mintx/30 bg-mintx/10 px-4 py-2 text-sm text-mintx">
+      <span className="status-pulse h-2 w-2 rounded-full bg-mintx" />
+      {label}
     </div>
   );
 }

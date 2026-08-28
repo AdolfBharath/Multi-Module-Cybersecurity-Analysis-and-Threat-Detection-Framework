@@ -19,7 +19,7 @@ def seed_database() -> None:
 
         for role in db.query(Role).all():
             existing_permissions = {permission.action for permission in role.permissions}
-            for action in ["dashboard:read", "logs:read", "alerts:read", "incidents:read"]:
+            for action in ["dashboard:read", "logs:read", "alerts:read", "incidents:read", "reports:read", "settings:read"]:
                 if action not in existing_permissions:
                     db.add(Permission(role_id=role.id, action=action))
 
