@@ -13,18 +13,18 @@ from app.db.models import Alert, Incident, Report, SecurityLog
 from app.db.session import get_db
 from app.schemas.modules import ReportGenerateRequest
 
-router = APIRouter(dependencies=[Depends(require_permissions("dashboard:read"))])
+router = APIRouter()
 REPORT_DIR = Path("generated_reports")
 
 
 @router.get("")
-def reports(db: Session = Depends(get_db)) -> dict:
+def reports(_: object = Depends(require_permissions("reports:read")), db: Session = Depends(get_db)) -> dict:
     rows = db.query(Report).order_by(Report.created_at.desc()).all()
     return {"success": True, "data": [{"id": row.id, "name": row.name, "report_type": row.report_type, "format": row.format, "status": row.status, "path": row.path, "created_at": row.created_at} for row in rows]}
 
 
 @router.post("/generate")
-def generate(payload: ReportGenerateRequest, db: Session = Depends(get_db)) -> dict:
+def generate(payload: ReportGenerateRequest, _: object = Depends(require_permissions("reports:create")), db: Session = Depends(get_db)) -> dict:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     safe_name = payload.name.lower().replace(" ", "_").replace("/", "_")
     extension = payload.format.lower()
@@ -70,7 +70,7 @@ def generate(payload: ReportGenerateRequest, db: Session = Depends(get_db)) -> d
 
 
 @router.get("/{report_id}/download")
-def download(report_id: int, db: Session = Depends(get_db)) -> FileResponse:
+def download(report_id: int, _: object = Depends(require_permissions("reports:export")), db: Session = Depends(get_db)) -> FileResponse:
     report = db.get(Report, report_id)
     if not report or not report.path or not Path(report.path).exists():
         raise HTTPException(status_code=404, detail="Report file not found")

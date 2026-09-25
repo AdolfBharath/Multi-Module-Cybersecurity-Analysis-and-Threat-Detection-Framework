@@ -21,21 +21,22 @@ import {
   UserCircle,
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { hasPermission } from "../lib/api";
 
 const nav = [
-  { to: "/", label: "Dashboard", icon: Gauge },
-  { to: "/logs", label: "Logs", icon: HardDriveUpload },
-  { to: "/detection", label: "Detection", icon: Radar },
-  { to: "/anomaly", label: "Anomaly", icon: ChartNoAxesCombined },
-  { to: "/network", label: "Network", icon: Network },
-  { to: "/malware", label: "Malware", icon: Bug },
-  { to: "/vulnerabilities", label: "Vulnerabilities", icon: Terminal },
-  { to: "/intel", label: "Threat Intel", icon: Globe2 },
-  { to: "/incidents", label: "Incidents", icon: Siren },
-  { to: "/reports", label: "Reports", icon: FileBarChart },
-  { to: "/notifications", label: "Notifications", icon: Bell },
-  { to: "/audit", label: "Audit", icon: Fingerprint },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/", label: "Dashboard", icon: Gauge, permission: "dashboard:read" },
+  { to: "/logs", label: "Logs", icon: HardDriveUpload, permission: "logs:read" },
+  { to: "/detection", label: "Detection", icon: Radar, permission: "alerts:read" },
+  { to: "/anomaly", label: "Anomaly", icon: ChartNoAxesCombined, permission: "alerts:read" },
+  { to: "/network", label: "Network", icon: Network, permission: "dashboard:read" },
+  { to: "/malware", label: "Malware", icon: Bug, permission: "malware:analyze" },
+  { to: "/vulnerabilities", label: "Vulnerabilities", icon: Terminal, permission: "vulnerability:scan" },
+  { to: "/intel", label: "Threat Intel", icon: Globe2, permission: "threat_intel:read" },
+  { to: "/incidents", label: "Incidents", icon: Siren, permission: "incidents:read" },
+  { to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read" },
+  { to: "/notifications", label: "Notifications", icon: Bell, permission: "dashboard:read" },
+  { to: "/audit", label: "Audit", icon: Fingerprint, permission: "audit:read" },
+  { to: "/settings", label: "Settings", icon: Settings, permission: "settings:read" },
 ];
 
 export function Shell() {
@@ -55,7 +56,7 @@ export function Shell() {
           </div>
         </div>
         <nav className="mt-6 space-y-1">
-          {nav.map((item) => (
+          {nav.filter((item) => hasPermission(item.permission)).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

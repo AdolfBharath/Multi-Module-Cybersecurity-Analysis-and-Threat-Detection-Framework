@@ -1,4 +1,7 @@
 from fastapi import APIRouter
+from sqlalchemy import text
+
+from app.db.session import SessionLocal
 
 from app.modules.anomaly.router import router as anomaly_router
 from app.modules.audit.router import router as audit_router
@@ -38,3 +41,12 @@ api_router.include_router(websocket_router, prefix="/ws", tags=["Real Time"])
 def health() -> dict:
     return {"success": True, "data": {"status": "healthy", "service": "cybershield-xdr"}}
 
+
+@api_router.get("/ready")
+def ready() -> dict:
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+    finally:
+        db.close()
+    return {"success": True, "data": {"status": "ready"}}

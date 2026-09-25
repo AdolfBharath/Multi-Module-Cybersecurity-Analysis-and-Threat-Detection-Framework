@@ -5,7 +5,7 @@ from app.core.deps import require_permissions
 from app.db.models import AuditLog
 from app.db.session import get_db
 
-router = APIRouter(dependencies=[Depends(require_permissions("dashboard:read"))])
+router = APIRouter(dependencies=[Depends(require_permissions("audit:read"))])
 
 
 @router.get("")

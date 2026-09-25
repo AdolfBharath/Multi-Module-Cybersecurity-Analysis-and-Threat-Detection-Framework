@@ -28,7 +28,11 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Access token required")
     if db.query(RevokedToken).filter(RevokedToken.jti == payload.get("jti")).first():
         raise HTTPException(status_code=401, detail="Token has been revoked")
-    user = db.get(User, int(payload["sub"]))
+    try:
+        user_id = int(payload["sub"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=401, detail="Invalid token subject") from exc
+    user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Inactive or missing user")
     return user

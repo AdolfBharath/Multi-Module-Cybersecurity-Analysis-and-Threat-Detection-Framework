@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
+    mfa_code: str | None = Field(default=None, min_length=6, max_length=8)
+    recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
 
 
 class RegisterRequest(BaseModel):
@@ -25,6 +27,8 @@ class UserRead(BaseModel):
     is_active: bool
     is_verified: bool
     mfa_enabled: bool
+    force_password_change: bool = False
+    permissions: list[str] = []
     created_at: datetime
 
 
@@ -41,7 +45,12 @@ class PasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(min_length=8)
+    new_password: str = Field(min_length=12)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=8)
+    new_password: str = Field(min_length=12)
 
 
 class RefreshTokenRequest(BaseModel):

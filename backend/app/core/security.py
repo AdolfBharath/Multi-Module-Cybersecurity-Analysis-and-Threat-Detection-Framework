@@ -1,7 +1,13 @@
+import base64
+import hashlib
+import hmac
+import re
 from datetime import datetime, timedelta, timezone
+from secrets import token_urlsafe
 from typing import Any
 from uuid import uuid4
 
+from cryptography.fernet import Fernet
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -9,6 +15,7 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
+DEFAULT_PASSWORDS = {"CyberShield!2026", "Password123!", "Admin123!", "ChangeMe123!"}
 
 
 def hash_password(password: str) -> str:
@@ -17,6 +24,47 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return pwd_context.verify(password, password_hash)
+
+
+def validate_password_strength(password: str) -> None:
+    if password in DEFAULT_PASSWORDS:
+        raise ValueError("Password is a known default and cannot be used")
+    if len(password) < 12:
+        raise ValueError("Password must be at least 12 characters")
+    checks = [
+        re.search(r"[a-z]", password),
+        re.search(r"[A-Z]", password),
+        re.search(r"\d", password),
+        re.search(r"[^A-Za-z0-9]", password),
+    ]
+    if sum(bool(check) for check in checks) < 4:
+        raise ValueError("Password must include uppercase, lowercase, number, and symbol")
+
+
+def generate_secure_token() -> str:
+    return token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    return hmac.new(settings.SECRET_KEY.encode("utf-8"), token.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def constant_time_equal(left: str, right: str) -> bool:
+    return hmac.compare_digest(left, right)
+
+
+def _fernet() -> Fernet:
+    material = (settings.FIELD_ENCRYPTION_KEY or settings.SECRET_KEY).encode("utf-8")
+    key = base64.urlsafe_b64encode(hashlib.sha256(material).digest())
+    return Fernet(key)
+
+
+def encrypt_secret(value: str) -> str:
+    return _fernet().encrypt(value.encode("utf-8")).decode("utf-8")
+
+
+def decrypt_secret(value: str) -> str:
+    return _fernet().decrypt(value.encode("utf-8")).decode("utf-8")
 
 
 def create_token(subject: str, expires_delta: timedelta, token_type: str, extra: dict[str, Any] | None = None) -> str:

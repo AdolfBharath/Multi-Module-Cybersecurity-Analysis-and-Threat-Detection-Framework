@@ -7,7 +7,7 @@ from app.db.models import ThreatIntelIndicator
 from app.db.session import get_db
 from app.schemas.modules import IntelLookupRequest
 
-router = APIRouter(dependencies=[Depends(require_permissions("alerts:read"))])
+router = APIRouter()
 
 
 def _local_reputation(indicator: str) -> dict:
@@ -25,7 +25,7 @@ def _local_reputation(indicator: str) -> dict:
 
 
 @router.get("/lookup")
-def lookup(indicator: str, indicator_type: str = "ip", watch: bool = False, db: Session = Depends(get_db)) -> dict:
+def lookup(indicator: str, indicator_type: str = "ip", watch: bool = False, _: object = Depends(require_permissions("threat_intel:read")), db: Session = Depends(get_db)) -> dict:
     result = _local_reputation(indicator)
     row = db.query(ThreatIntelIndicator).filter(ThreatIntelIndicator.indicator == indicator).first()
     mitre = [{"tactic": "Command and Control", "technique": "T1071 Application Layer Protocol"}] if result["reputation"] == "malicious" else []
@@ -54,11 +54,11 @@ def lookup(indicator: str, indicator_type: str = "ip", watch: bool = False, db: 
 
 
 @router.post("/lookup")
-def lookup_post(payload: IntelLookupRequest, db: Session = Depends(get_db)) -> dict:
-    return lookup(payload.indicator, payload.indicator_type, payload.watch, db)
+def lookup_post(payload: IntelLookupRequest, _: object = Depends(require_permissions("threat_intel:update")), db: Session = Depends(get_db)) -> dict:
+    return lookup(payload.indicator, payload.indicator_type, payload.watch, None, db)
 
 
 @router.get("/watchlist")
-def watchlist(db: Session = Depends(get_db)) -> dict:
+def watchlist(_: object = Depends(require_permissions("threat_intel:read")), db: Session = Depends(get_db)) -> dict:
     rows = db.query(ThreatIntelIndicator).filter(ThreatIntelIndicator.watched.is_(True)).order_by(ThreatIntelIndicator.created_at.desc()).all()
     return {"success": True, "data": [{"id": row.id, "indicator": row.indicator, "type": row.indicator_type, "reputation": row.reputation, "confidence": row.confidence, "sources": row.sources} for row in rows]}

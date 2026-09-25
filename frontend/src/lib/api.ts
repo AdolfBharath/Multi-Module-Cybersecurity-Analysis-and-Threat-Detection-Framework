@@ -32,3 +32,18 @@ api.interceptors.response.use(
 );
 
 export type ApiEnvelope<T> = { success: boolean; data: T };
+
+export function currentUser() {
+  return JSON.parse(localStorage.getItem("cybershield_user") ?? "null");
+}
+
+export function hasPermission(permission: string) {
+  const user = currentUser();
+  return user?.role === "Admin" || user?.permissions?.includes(permission);
+}
+
+export function authenticatedWsUrl() {
+  const token = localStorage.getItem("cybershield_token");
+  const separator = WS_URL.includes("?") ? "&" : "?";
+  return token ? `${WS_URL}${separator}token=${encodeURIComponent(token)}` : WS_URL;
+}

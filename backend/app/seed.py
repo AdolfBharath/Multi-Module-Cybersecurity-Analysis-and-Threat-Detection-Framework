@@ -1,46 +1,102 @@
-from app.core.security import hash_password
-from app.db.models import Alert, Incident, NetworkEvent, Notification, Permission, Role, SecurityLog, SystemSetting, User
+from app.core.config import settings
+from app.core.security import hash_password, validate_password_strength
+from app.db.models import Alert, Incident, NetworkEvent, Notification, Organization, Permission, Role, SecurityLog, SystemSetting, User
 from app.db.session import SessionLocal
+
+
+ROLE_PERMISSIONS = {
+    "Admin": [
+        "dashboard:read", "logs:read", "logs:export", "alerts:read", "alerts:create", "alerts:update", "alerts:delete",
+        "incidents:read", "incidents:create", "incidents:update", "incidents:assign", "incidents:close",
+        "malware:submit", "malware:analyze", "malware:download", "vulnerability:scan", "vulnerability:schedule",
+        "threat_intel:read", "threat_intel:update", "reports:read", "reports:create", "reports:export",
+        "audit:read", "users:read", "users:create", "users:update", "users:disable", "roles:read", "roles:manage",
+        "settings:read", "settings:update",
+    ],
+    "SOC Manager": [
+        "dashboard:read", "logs:read", "logs:export", "alerts:read", "alerts:update", "incidents:read",
+        "incidents:create", "incidents:update", "incidents:assign", "incidents:close", "reports:read",
+        "reports:create", "reports:export", "audit:read", "users:read", "roles:read", "settings:read",
+    ],
+    "Senior Security Analyst": [
+        "dashboard:read", "logs:read", "logs:export", "alerts:read", "alerts:create", "alerts:update",
+        "incidents:read", "incidents:create", "incidents:update", "malware:submit", "malware:analyze",
+        "vulnerability:scan", "threat_intel:read", "threat_intel:update", "reports:read",
+    ],
+    "SOC Analyst": [
+        "dashboard:read", "logs:read", "alerts:read", "alerts:update", "incidents:read", "incidents:create",
+        "incidents:update", "threat_intel:read", "reports:read",
+    ],
+    "Security Analyst": [
+        "dashboard:read", "logs:read", "alerts:read", "incidents:read", "threat_intel:read", "reports:read",
+    ],
+    "Malware Analyst": ["dashboard:read", "logs:read", "alerts:read", "malware:submit", "malware:analyze", "malware:download", "reports:read"],
+    "Vulnerability Analyst": ["dashboard:read", "logs:read", "alerts:read", "vulnerability:scan", "vulnerability:schedule", "reports:read"],
+    "Threat Hunter": ["dashboard:read", "logs:read", "logs:export", "alerts:read", "alerts:create", "threat_intel:read", "threat_intel:update", "reports:read"],
+    "Auditor": ["dashboard:read", "reports:read", "audit:read", "settings:read"],
+    "Viewer": ["dashboard:read", "alerts:read", "incidents:read", "reports:read"],
+}
 
 
 def seed_database() -> None:
     db = SessionLocal()
     try:
-        role_names = {
+        role_descriptions = {
             "Admin": "Full platform administration",
-            "Security Analyst": "Investigate alerts and incidents",
             "SOC Manager": "Manage SOC operations and reporting",
+            "Senior Security Analyst": "Lead analyst with elevated investigation permissions",
+            "SOC Analyst": "Investigate alerts and incidents",
+            "Security Analyst": "Legacy analyst role",
+            "Malware Analyst": "Analyze submitted files and malware reports",
+            "Vulnerability Analyst": "Run and schedule vulnerability scans",
+            "Threat Hunter": "Hunt and enrich threat intelligence",
+            "Auditor": "Read audit and compliance data",
             "Viewer": "Read-only access",
         }
-        for name, description in role_names.items():
+        for name, description in role_descriptions.items():
             if not db.query(Role).filter(Role.name == name).first():
                 db.add(Role(name=name, description=description))
         db.flush()
 
         for role in db.query(Role).all():
             existing_permissions = {permission.action for permission in role.permissions}
-            for action in ["dashboard:read", "logs:read", "alerts:read", "incidents:read", "reports:read", "settings:read"]:
+            for action in ROLE_PERMISSIONS.get(role.name, ROLE_PERMISSIONS["Viewer"]):
                 if action not in existing_permissions:
                     db.add(Permission(role_id=role.id, action=action))
 
         admin_role = db.query(Role).filter(Role.name == "Admin").first()
-        admin_user = db.query(User).filter(User.email == "admin@cybershield.dev").first()
-        legacy_admin = db.query(User).filter(User.email == "admin@cybershield.local").first()
-        if legacy_admin and not admin_user:
-            legacy_admin.email = "admin@cybershield.dev"
-            legacy_admin.password_hash = hash_password("CyberShield!2026")
-            legacy_admin.role_id = admin_role.id
-            admin_user = legacy_admin
-        elif legacy_admin and admin_user and legacy_admin.id != admin_user.id:
-            legacy_admin.email = f"legacy-admin-{legacy_admin.id}@cybershield.dev"
+        default_org = db.query(Organization).filter(Organization.slug == "default").first()
+        if not default_org:
+            default_org = Organization(name="Default Organization", slug="default")
+            db.add(default_org)
+            db.flush()
 
-        if not admin_user:
-            db.add(User(email="admin@cybershield.dev", full_name="CyberShield Administrator", password_hash=hash_password("CyberShield!2026"), role_id=admin_role.id))
-        else:
-            admin_user.password_hash = hash_password("CyberShield!2026")
-            admin_user.role_id = admin_role.id
+        for legacy_email in ["admin@cybershield.dev", "admin@cybershield.local"]:
+            if legacy_email != settings.ADMIN_BOOTSTRAP_EMAIL:
+                legacy_user = db.query(User).filter(User.email == legacy_email).first()
+                if legacy_user:
+                    legacy_user.is_active = False
+                    legacy_user.password_hash = hash_password(settings.generate_secret_hint())
+                    legacy_user.force_password_change = True
 
-        if db.query(SecurityLog).count() == 0:
+        if settings.ADMIN_BOOTSTRAP_EMAIL and settings.ADMIN_BOOTSTRAP_PASSWORD:
+            existing_admin = db.query(User).filter(User.role_id == admin_role.id).first()
+            bootstrap_user = db.query(User).filter(User.email == settings.ADMIN_BOOTSTRAP_EMAIL).first()
+            if not existing_admin and not bootstrap_user:
+                validate_password_strength(settings.ADMIN_BOOTSTRAP_PASSWORD)
+                db.add(
+                    User(
+                        email=settings.ADMIN_BOOTSTRAP_EMAIL,
+                        full_name="Bootstrap Administrator",
+                        password_hash=hash_password(settings.ADMIN_BOOTSTRAP_PASSWORD),
+                        role_id=admin_role.id,
+                        is_verified=True,
+                        force_password_change=True,
+                        organization_id=default_org.id,
+                    )
+                )
+
+        if settings.LOAD_DEMO_DATA and db.query(SecurityLog).count() == 0:
             db.add_all(
                 [
                     SecurityLog(source="waf-east", log_type="nginx", message="GET /search?q=' UNION SELECT password FROM users --", severity="critical", tags=["sql-injection", "waf"]),
@@ -50,7 +106,7 @@ def seed_database() -> None:
                 ]
             )
 
-        if db.query(Alert).count() == 0:
+        if settings.LOAD_DEMO_DATA and db.query(Alert).count() == 0:
             db.add_all(
                 [
                     Alert(title="SQL Injection Attempt", severity="critical", status="open", source="waf-east", tactic="Initial Access", technique="T1190", confidence=0.96, description="Public-facing app exploit pattern blocked."),
@@ -59,7 +115,7 @@ def seed_database() -> None:
                 ]
             )
 
-        if db.query(Incident).count() == 0:
+        if settings.LOAD_DEMO_DATA and db.query(Incident).count() == 0:
             db.add_all(
                 [
                     Incident(title="Potential web application compromise", severity="critical", status="triage", assignee="Asha Rao", evidence={"alert_ids": [1]}, timeline=[{"event": "Alert correlated", "actor": "engine"}]),
@@ -67,7 +123,7 @@ def seed_database() -> None:
                 ]
             )
 
-        if db.query(NetworkEvent).count() == 0:
+        if settings.LOAD_DEMO_DATA and db.query(NetworkEvent).count() == 0:
             db.add_all(
                 [
                     NetworkEvent(src_ip="203.0.113.13", dst_ip="10.0.4.12", protocol="TCP", port=443, bytes_in=18292, bytes_out=921, geo={"country": "US"}),
@@ -76,7 +132,7 @@ def seed_database() -> None:
                 ]
             )
 
-        if db.query(Notification).count() == 0:
+        if settings.LOAD_DEMO_DATA and db.query(Notification).count() == 0:
             db.add(Notification(channel="browser", title="Critical alert opened", message="SQL Injection Attempt requires triage", delivered=True))
 
         if db.query(SystemSetting).count() == 0:

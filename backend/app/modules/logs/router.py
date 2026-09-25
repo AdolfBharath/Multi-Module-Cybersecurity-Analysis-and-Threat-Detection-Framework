@@ -1,17 +1,19 @@
 import csv
 import io
 import json
+from pathlib import PurePath
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import require_permissions
-from app.db.models import AuditLog, SecurityLog
+from app.db.models import AuditLog, SecurityLog, User
 from app.db.session import get_db
 from app.schemas.modules import LogCreate, LogRead
 from app.services.security_detection import analyze_text
 
-router = APIRouter(dependencies=[Depends(require_permissions("logs:read"))])
+router = APIRouter()
 
 
 @router.get("", response_model=list[LogRead])
@@ -20,6 +22,7 @@ def list_logs(
     severity: str = "",
     skip: int = 0,
     limit: int = Query(50, le=200),
+    _: User = Depends(require_permissions("logs:read")),
     db: Session = Depends(get_db),
 ) -> list[SecurityLog]:
     query = db.query(SecurityLog)
@@ -31,10 +34,10 @@ def list_logs(
 
 
 @router.post("", response_model=LogRead)
-def create_log(payload: LogCreate, db: Session = Depends(get_db)) -> SecurityLog:
+def create_log(payload: LogCreate, user: User = Depends(require_permissions("logs:read")), db: Session = Depends(get_db)) -> SecurityLog:
     log = SecurityLog(**payload.model_dump())
     db.add(log)
-    db.add(AuditLog(actor="api", action="create", entity="logs", metadata_json={"source": payload.source}))
+    db.add(AuditLog(actor=user.email, action="logs:create", entity="logs", metadata_json={"source": payload.source}))
     for alert in analyze_text(payload.message, payload.source)["alerts"]:
         from app.db.models import Alert
 
@@ -45,24 +48,28 @@ def create_log(payload: LogCreate, db: Session = Depends(get_db)) -> SecurityLog
 
 
 @router.post("/upload")
-def upload_logs(file: UploadFile = File(...), db: Session = Depends(get_db)) -> dict:
-    content = file.file.read().decode("utf-8", errors="ignore")
+def upload_logs(request: Request, file: UploadFile = File(...), user: User = Depends(require_permissions("logs:read")), db: Session = Depends(get_db)) -> dict:
+    safe_name = PurePath(file.filename or "upload.log").name.replace("\\", "_").replace("/", "_")
+    content_bytes = file.file.read(settings.MAX_UPLOAD_BYTES + 1)
+    if len(content_bytes) > settings.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Uploaded file is too large")
+    content = content_bytes.decode("utf-8", errors="ignore")
     created = 0
-    if file.filename.endswith(".json"):
+    if safe_name.endswith(".json"):
         payload = json.loads(content)
         rows = payload if isinstance(payload, list) else [payload]
         for row in rows:
-            db.add(SecurityLog(source=row.get("source", file.filename), log_type=row.get("log_type", "json"), message=str(row.get("message", row)), severity=row.get("severity", "info"), raw=row))
+            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "json"), message=str(row.get("message", row)), severity=row.get("severity", "info"), raw=row))
             created += 1
-    elif file.filename.endswith(".csv"):
+    elif safe_name.endswith(".csv"):
         for row in csv.DictReader(io.StringIO(content)):
-            db.add(SecurityLog(source=row.get("source", file.filename), log_type=row.get("log_type", "csv"), message=row.get("message", str(row)), severity=row.get("severity", "info"), raw=row))
+            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "csv"), message=row.get("message", str(row)), severity=row.get("severity", "info"), raw=row))
             created += 1
     else:
         for line in content.splitlines():
             if line.strip():
-                db.add(SecurityLog(source=file.filename, log_type="text", message=line[:4000], severity="info", raw={"line": line}))
+                db.add(SecurityLog(source=safe_name, log_type="text", message=line[:4000], severity="info", raw={"line": line[:4000]}))
                 created += 1
-    db.add(AuditLog(actor="api", action="upload", entity="logs", metadata_json={"file": file.filename, "count": created}))
+    db.add(AuditLog(actor=user.email, action="logs:upload", entity="logs", metadata_json={"file": safe_name, "count": created, "size": len(content_bytes)}, ip_address=request.client.host if request.client else ""))
     db.commit()
-    return {"success": True, "data": {"created": created, "filename": file.filename}}
+    return {"success": True, "data": {"created": created, "filename": safe_name}}

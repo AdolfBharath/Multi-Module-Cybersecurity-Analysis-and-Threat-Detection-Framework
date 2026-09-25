@@ -7,21 +7,22 @@ import { Button, Card, Input } from "../components/ui";
 
 export function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@cybershield.dev");
-  const [password, setPassword] = useState("CyberShield!2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [error, setError] = useState("");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     try {
-      const response = await api.post("/auth/login", { email, password });
+      const response = await api.post("/auth/login", { email, password, mfa_code: mfaCode || undefined });
       localStorage.setItem("cybershield_token", response.data.access_token);
       localStorage.setItem("cybershield_refresh_token", response.data.refresh_token);
       localStorage.setItem("cybershield_user", JSON.stringify(response.data.user));
       navigate("/");
     } catch {
-      setError("Invalid credentials or backend unavailable.");
+      setError("Sign in failed. Check credentials, MFA, or backend availability.");
     }
   }
 
@@ -73,6 +74,7 @@ export function Login() {
             <form onSubmit={submit} className="space-y-4">
               <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" type="email" />
               <Input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
+              <Input value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} placeholder="MFA code, if enabled" inputMode="numeric" />
               {error ? <div className="rounded-md border border-dangerx/40 bg-dangerx/10 p-3 text-sm text-red-100">{error}</div> : null}
               <Button className="w-full" type="submit">Enter SOC</Button>
             </form>

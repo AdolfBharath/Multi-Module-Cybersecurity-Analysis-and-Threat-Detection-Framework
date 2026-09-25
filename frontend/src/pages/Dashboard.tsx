@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, Cpu, Database, HardDrive, MemoryStick, RadioTower, ShieldAlert, Siren, Zap } from "lucide-react";
-import { api, WS_URL } from "../lib/api";
+import { api, authenticatedWsUrl } from "../lib/api";
 import type { AlertItem, DashboardMetrics } from "../lib/types";
 import { Badge, Card, Metric, PageFrame, SectionTitle, SkeletonCard, StatusPill } from "../components/ui";
 
@@ -39,7 +39,7 @@ export function Dashboard() {
   });
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(authenticatedWsUrl());
     ws.onmessage = (event) => setLive((current) => [JSON.parse(event.data), ...current].slice(0, 6));
     return () => ws.close();
   }, []);

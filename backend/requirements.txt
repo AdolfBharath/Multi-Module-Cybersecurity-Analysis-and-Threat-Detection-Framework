@@ -26,3 +26,6 @@ python-magic==0.4.27
 yara-python==4.5.1
 scapy==2.6.1
 python-nmap==0.7.1
+pyotp==2.9.0
+pytest==8.3.4
+httpx==0.28.1
