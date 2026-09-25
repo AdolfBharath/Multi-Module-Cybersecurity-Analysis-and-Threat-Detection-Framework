@@ -1,17 +1,19 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+EmailField = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=255)
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str = EmailField
     password: str = Field(min_length=8)
     mfa_code: str | None = Field(default=None, min_length=6, max_length=8)
     recovery_code: str | None = Field(default=None, min_length=8, max_length=32)
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str = EmailField
     full_name: str = Field(min_length=2, max_length=160)
     password: str = Field(min_length=8)
     role: str = "Security Analyst"
@@ -21,7 +23,7 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    email: EmailStr
+    email: str
     full_name: str
     role: str
     is_active: bool
@@ -40,7 +42,7 @@ class TokenResponse(BaseModel):
 
 
 class PasswordRequest(BaseModel):
-    email: EmailStr
+    email: str = EmailField
 
 
 class ResetPasswordRequest(BaseModel):
@@ -63,7 +65,7 @@ class LogoutRequest(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    email: EmailStr
+    email: str = EmailField
     token: str
 
 

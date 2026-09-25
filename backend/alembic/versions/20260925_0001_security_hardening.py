@@ -74,6 +74,45 @@ def upgrade() -> None:
     if not _has_column(bind, "sessions", "refresh_jti"):
         op.add_column("sessions", sa.Column("refresh_jti", sa.String(length=80), nullable=False, server_default=""))
         op.create_index("ix_sessions_refresh_jti", "sessions", ["refresh_jti"])
+    resource_columns = {
+        "logs": [sa.Column("organization_id", sa.Integer(), nullable=True)],
+        "alerts": [sa.Column("organization_id", sa.Integer(), nullable=True), sa.Column("user_email", sa.String(length=255), nullable=False, server_default="")],
+        "incidents": [sa.Column("organization_id", sa.Integer(), nullable=True)],
+        "network_events": [
+            sa.Column("src_port", sa.Integer(), nullable=False, server_default="0"),
+            sa.Column("event_type", sa.String(length=120), nullable=False, server_default=""),
+            sa.Column("severity", sa.String(length=20), nullable=False, server_default="info"),
+            sa.Column("status", sa.String(length=40), nullable=False, server_default="detected"),
+            sa.Column("organization_id", sa.Integer(), nullable=True),
+        ],
+        "malware_reports": [sa.Column("organization_id", sa.Integer(), nullable=True), sa.Column("submitted_by", sa.String(length=255), nullable=False, server_default="")],
+        "vulnerability_reports": [
+            sa.Column("organization_id", sa.Integer(), nullable=True),
+            sa.Column("severity", sa.String(length=20), nullable=False, server_default="info"),
+            sa.Column("status", sa.String(length=40), nullable=False, server_default="open"),
+            sa.Column("cvss_score", sa.Float(), nullable=False, server_default="0"),
+        ],
+        "threat_intel_indicators": [sa.Column("organization_id", sa.Integer(), nullable=True)],
+        "notifications": [
+            sa.Column("recipient_user_id", sa.Integer(), nullable=True),
+            sa.Column("organization_id", sa.Integer(), nullable=True),
+            sa.Column("severity", sa.String(length=20), nullable=False, server_default="info"),
+            sa.Column("priority", sa.String(length=20), nullable=False, server_default="normal"),
+            sa.Column("status", sa.String(length=40), nullable=False, server_default="unread"),
+            sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("related_entity", sa.String(length=80), nullable=False, server_default=""),
+            sa.Column("related_id", sa.Integer(), nullable=True),
+            sa.Column("required_permission", sa.String(length=120), nullable=False, server_default="dashboard:read"),
+            sa.Column("metadata_json", sa.JSON(), nullable=False, server_default="{}"),
+        ],
+    }
+    for table_name, columns in resource_columns.items():
+        if not _has_table(bind, table_name):
+            continue
+        for column in columns:
+            if not _has_column(bind, table_name, column.name):
+                op.add_column(table_name, column)
     if not _has_table(bind, "password_reset_tokens"):
         op.create_table(
             "password_reset_tokens",

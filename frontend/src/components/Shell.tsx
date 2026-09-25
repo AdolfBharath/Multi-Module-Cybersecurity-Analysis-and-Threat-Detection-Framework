@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   Activity,
   Bell,
@@ -21,7 +22,7 @@ import {
   UserCircle,
 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { hasPermission } from "../lib/api";
+import { api, authenticatedWsUrl, hasPermission } from "../lib/api";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: Gauge, permission: "dashboard:read" },
@@ -42,6 +43,39 @@ const nav = [
 export function Shell() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("cybershield_user") ?? "null");
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!hasPermission("dashboard:read")) return;
+    let active = true;
+    let socket: WebSocket | null = null;
+    async function loadUnreadCount() {
+      try {
+        const response = await api.get("/notifications/unread-count");
+        if (active) setUnreadCount(Number(response.data.data.unread_count ?? 0));
+      } catch {
+        if (active) setUnreadCount(0);
+      }
+    }
+    loadUnreadCount();
+    try {
+      socket = new WebSocket(authenticatedWsUrl());
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (active && message.type === "notification_snapshot") {
+          setUnreadCount(Number(message.unread_count ?? 0));
+        }
+      };
+    } catch {
+      socket = null;
+    }
+    const timer = window.setInterval(loadUnreadCount, 30000);
+    return () => {
+      active = false;
+      socket?.close();
+      window.clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen cyber-grid">
@@ -86,6 +120,14 @@ export function Shell() {
                 <Activity className="h-3.5 w-3.5" />
                 Live telemetry
               </div>
+              <NavLink to="/notifications" className="relative rounded-md border border-line p-2 text-slate-300 hover:bg-white/7" title="Notifications">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-dangerx px-1.5 text-center text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                ) : null}
+              </NavLink>
               <div className="flex items-center gap-2 text-sm text-slate-300">
                 <UserCircle className="h-5 w-5" />
                 <span className="hidden sm:inline">{user?.full_name ?? "SOC Analyst"}</span>

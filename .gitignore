@@ -31,6 +31,7 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+TEST_CREDENTIALS.md
 reports/generated/
 uploads/
 .codex_ppt_work/

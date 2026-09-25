@@ -40,7 +40,10 @@ export function Dashboard() {
 
   useEffect(() => {
     const ws = new WebSocket(authenticatedWsUrl());
-    ws.onmessage = (event) => setLive((current) => [JSON.parse(event.data), ...current].slice(0, 6));
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "alert") setLive((current) => [message, ...current].slice(0, 6));
+    };
     return () => ws.close();
   }, []);
 

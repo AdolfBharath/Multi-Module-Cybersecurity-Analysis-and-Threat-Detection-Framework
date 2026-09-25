@@ -138,6 +138,7 @@ class SecurityLog(Base):
     severity: Mapped[str] = mapped_column(String(20), default=Severity.info.value, index=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -153,6 +154,8 @@ class Alert(Base):
     technique: Mapped[str] = mapped_column(String(120), default="")
     confidence: Mapped[float] = mapped_column(Float, default=0.7)
     description: Mapped[str] = mapped_column(Text, default="")
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
+    user_email: Mapped[str] = mapped_column(String(255), default="", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -189,6 +192,7 @@ class Incident(Base):
     evidence: Mapped[dict] = mapped_column(JSON, default=dict)
     timeline: Mapped[list[dict]] = mapped_column(JSON, default=list)
     resolution_notes: Mapped[str] = mapped_column(Text, default="")
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -198,11 +202,16 @@ class NetworkEvent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     src_ip: Mapped[str] = mapped_column(String(64), index=True)
     dst_ip: Mapped[str] = mapped_column(String(64), index=True)
+    src_port: Mapped[int] = mapped_column(Integer, default=0)
     protocol: Mapped[str] = mapped_column(String(24), index=True)
     port: Mapped[int] = mapped_column(Integer, index=True)
+    event_type: Mapped[str] = mapped_column(String(120), default="", index=True)
+    severity: Mapped[str] = mapped_column(String(20), default=Severity.info.value, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="detected", index=True)
     bytes_in: Mapped[int] = mapped_column(Integer, default=0)
     bytes_out: Mapped[int] = mapped_column(Integer, default=0)
     geo: Mapped[dict] = mapped_column(JSON, default=dict)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -218,6 +227,8 @@ class MalwareReport(Base):
     verdict: Mapped[str] = mapped_column(String(80), index=True)
     yara_matches: Mapped[list[str]] = mapped_column(JSON, default=list)
     details: Mapped[dict] = mapped_column(JSON, default=dict)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
+    submitted_by: Mapped[str] = mapped_column(String(255), default="", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -230,6 +241,10 @@ class VulnerabilityReport(Base):
     cves: Mapped[list[dict]] = mapped_column(JSON, default=list)
     os_detection: Mapped[str] = mapped_column(String(120), default="Unknown")
     recommendations: Mapped[list[str]] = mapped_column(JSON, default=list)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
+    severity: Mapped[str] = mapped_column(String(20), default=Severity.info.value, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="open", index=True)
+    cvss_score: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -257,6 +272,7 @@ class ThreatIntelIndicator(Base):
     mitre: Mapped[list[dict]] = mapped_column(JSON, default=list)
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
     watched: Mapped[bool] = mapped_column(Boolean, default=False)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -280,6 +296,17 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(180))
     message: Mapped[str] = mapped_column(Text)
     delivered: Mapped[bool] = mapped_column(Boolean, default=False)
+    recipient_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), nullable=True, index=True)
+    severity: Mapped[str] = mapped_column(String(20), default=Severity.info.value, index=True)
+    priority: Mapped[str] = mapped_column(String(20), default="normal", index=True)
+    status: Mapped[str] = mapped_column(String(40), default="unread", index=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    related_entity: Mapped[str] = mapped_column(String(80), default="", index=True)
+    related_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    required_permission: Mapped[str] = mapped_column(String(120), default="dashboard:read", index=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
