@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_permissions
-from app.db.models import Alert, Detection, DetectionSuppression
+from app.db.models import Alert, Detection, DetectionSuppression, Notification, User
 from app.db.session import get_db
 from app.schemas.modules import DetectionRequest, DetectionResult, RuleCreate, SuppressionCreate
 from app.services.security_detection import SIGNATURES, analyze_text
@@ -31,7 +31,7 @@ def create_rule(payload: RuleCreate, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/analyze", response_model=DetectionResult)
-def analyze(payload: DetectionRequest, db: Session = Depends(get_db)) -> DetectionResult:
+def analyze(payload: DetectionRequest, db: Session = Depends(get_db), user: User = Depends(require_permissions("alerts:read"))) -> DetectionResult:
     result = analyze_text(payload.text, payload.source)
     suppressed = {
         row.signature_name
@@ -46,7 +46,10 @@ def analyze(payload: DetectionRequest, db: Session = Depends(get_db)) -> Detecti
     result["alerts"] = [alert for alert in result["alerts"] if alert["title"] not in suppressed]
     result["matched"] = bool(result["alerts"])
     for alert in result["alerts"]:
-        db.add(Alert(**alert, status="open", tactic="Detection", technique=alert["title"]))
+        record = Alert(**alert, status="open", tactic="Detection", technique=alert["title"], organization_id=user.organization_id)
+        db.add(record)
+        db.flush()
+        db.add(Notification(channel="browser", title=record.title, message=record.description, severity=record.severity, organization_id=user.organization_id, recipient_user_id=user.id, required_permission="alerts:read", related_entity="alert", related_id=record.id))
     db.commit()
     return DetectionResult(**result)
 

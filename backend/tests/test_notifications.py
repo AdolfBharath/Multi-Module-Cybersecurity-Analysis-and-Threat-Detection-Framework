@@ -118,3 +118,48 @@ def test_websocket_notification_snapshot_is_authorized() -> None:
         titles = {item["title"] for item in snapshot["notifications"]}
         assert "Security posture summary available" in titles
         assert "Malware analysis required" not in titles
+
+
+def test_broadcast_read_state_is_personal_and_read_all_is_scoped() -> None:
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == "test.soc@cybershield.local").one()
+        row = Notification(channel="browser", title="Shared notification", message="Team update", organization_id=user.organization_id, required_permission="dashboard:read")
+        db.add(row)
+        db.commit()
+        notification_id = row.id
+    soc = _headers(_login("test.soc@cybershield.local", "TestSOC@2026!Secure"))
+    viewer = _headers(_login("test.viewer@cybershield.local", "TestViewer@2026!Secure"))
+    assert client.put("/api/v1/notifications/read-all", headers=soc).status_code == 200
+    assert client.get("/api/v1/notifications/unread-count", headers=soc).json()["data"]["unread_count"] == 0
+    items = client.get("/api/v1/notifications", headers=viewer).json()["data"]
+    assert next(row for row in items if row["id"] == notification_id)["status"] == "unread"
+    assert client.put(f"/api/v1/notifications/{notification_id}/archive", headers=soc).json()["data"]["status"] == "archived"
+    items = client.get("/api/v1/notifications", headers=viewer).json()["data"]
+    assert next(row for row in items if row["id"] == notification_id)["status"] == "unread"
+
+
+def test_dashboard_uses_real_tenant_scoped_data() -> None:
+    from app.db.models import Alert, Incident
+    from app.services.dashboard import get_dashboard_metrics
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.email == "test.admin@cybershield.local").one()
+        other = db.query(Organization).filter(Organization.slug == "other-test-org").one()
+        before = get_dashboard_metrics(db, user)
+        db.add(Alert(title="Foreign alert", severity="critical", source="test", organization_id=other.id))
+        db.add(Incident(title="Foreign incident", severity="critical", organization_id=other.id))
+        db.commit()
+        after = get_dashboard_metrics(db, user)
+        assert after["critical_alerts"] == before["critical_alerts"]
+        assert after["incidents"] == before["incidents"]
+        assert len(after["monthly_trend"]) == 30
+        assert after["threat_map"] == []
+        assert all(row["title"] != "Foreign alert" for row in after["live_feed"])
+
+
+def test_detection_creates_persistent_notification() -> None:
+    soc = _headers(_login("test.soc@cybershield.local", "TestSOC@2026!Secure"))
+    response = client.post("/api/v1/detection/analyze", headers=soc, json={"text": "SELECT * FROM users WHERE name = '' OR 1=1 --", "source": "test-notifications"})
+    assert response.status_code == 200
+    assert response.json()["matched"]
+    items = client.get("/api/v1/notifications", headers=soc).json()["data"]
+    assert any(row["related_entity"] == "alert" and row["related_id"] for row in items)

@@ -1,235 +1,47 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, Cpu, Database, HardDrive, MemoryStick, RadioTower, ShieldAlert, Siren, Zap } from "lucide-react";
-import { api, authenticatedWsUrl } from "../lib/api";
-import type { AlertItem, DashboardMetrics } from "../lib/types";
-import { Badge, Card, Metric, PageFrame, SectionTitle, SkeletonCard, StatusPill } from "../components/ui";
+import { Link } from "react-router-dom";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, ArrowUpRight, Database, RefreshCw, ShieldAlert, Siren, ShieldCheck } from "lucide-react";
+import { api, currentUser, hasPermission } from "../lib/api";
+import type { DashboardMetrics } from "../lib/types";
+import { relativeTime, useNotifications } from "../lib/notifications";
+import { Badge } from "../components/ui";
+import { NotificationContent } from "../components/NotificationList";
 
-const fallback: DashboardMetrics = {
-  total_logs: 0,
-  critical_alerts: 0,
-  incidents: 0,
-  high_threats: 0,
-  medium_threats: 0,
-  low_threats: 0,
-  network_status: "Loading",
-  cpu: 0,
-  memory: 0,
-  disk: 0,
-  todays_attacks: 0,
-  weekly_trend: [],
-  monthly_trend: [],
-  attack_timeline: [],
-  alert_timeline: [],
-  recent_activity: [],
-  live_feed: [],
-  threat_map: [],
-  top_attack_sources: [],
-  mitre_matrix: [],
-};
-
+type Incident = { id: number; title: string; severity: string; status: string; assignee: string; created_at: string };
 export function Dashboard() {
-  const [live, setLive] = useState<AlertItem[]>([]);
-  const { data = fallback, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: async () => (await api.get<DashboardMetrics>("/dashboard")).data,
-    refetchInterval: 30000,
-  });
-
-  useEffect(() => {
-    const ws = new WebSocket(authenticatedWsUrl());
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === "alert") setLive((current) => [message, ...current].slice(0, 6));
-    };
-    return () => ws.close();
-  }, []);
-
-  const severityData = [
-    { name: "Critical", value: data.critical_alerts, color: "#ff526d" },
-    { name: "High", value: data.high_threats, color: "#fb923c" },
-    { name: "Medium", value: data.medium_threats, color: "#f4b860" },
-    { name: "Low", value: data.low_threats, color: "#3df2b7" },
-  ];
-
-  return (
-    <PageFrame>
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <SectionTitle title="SOC Dashboard" subtitle="Live enterprise security posture, attack telemetry, and incident response signal." />
-        <StatusPill label={data.network_status} />
-      </div>
-
-      {isLoading ? (
-        <div className="metric-grid">
-          {[1, 2, 3, 4].map((item) => <SkeletonCard key={item} />)}
-        </div>
-      ) : (
-        <div className="metric-grid">
-          <Metric label="Total Logs" value={data.total_logs} />
-          <Metric label="Critical Alerts" value={data.critical_alerts} accent="red" />
-          <Metric label="Incidents" value={data.incidents} accent="amber" />
-          <Metric label="Today's Attacks" value={data.todays_attacks} accent="mint" />
-        </div>
-      )}
-
-      <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Operational Readiness</div>
-              <div className="mt-2 text-2xl font-bold text-white">Production SOC Surface</div>
-            </div>
-            <div className="grid h-12 w-12 place-items-center rounded-lg border border-cyanx/30 bg-cyanx/10">
-              <Zap className="h-6 w-6 text-cyanx" />
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            {[
-              ["Auth/RBAC", 88, "JWT rotation, revocation, route guards"],
-              ["Detection", 74, "rules, suppressions, correlation"],
-              ["Threat Intel", 68, "IOC cache and watchlist enrichment"],
-            ].map(([label, score, detail]) => (
-              <div key={String(label)}>
-                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-slate-200">{label}</span>
-                  <span className="text-slate-500">{detail}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <motion.div className="h-full rounded-full bg-cyanx" initial={{ width: 0 }} animate={{ width: `${score}%` }} transition={{ duration: 0.85 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="mb-4 flex items-center gap-2 text-white">
-            <RadioTower className="h-5 w-5 text-mintx" />
-            Threat Surface Heatmap
-          </div>
-          <div className="threat-map-grid">
-            {Array.from({ length: 70 }).map((_, index) => {
-              const level = (index * 7 + data.critical_alerts + data.high_threats) % 5;
-              return <span key={index} className={`heat-cell heat-${level}`} />;
-            })}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card className="chart-card">
-          <div className="mb-4 flex items-center gap-2 text-white">
-            <ShieldAlert className="h-5 w-5 text-cyanx" />
-            Weekly Attack Trend
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer>
-              <AreaChart data={data.weekly_trend}>
-                <defs>
-                  <linearGradient id="attacks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#35d3ff" stopOpacity={0.55} />
-                    <stop offset="95%" stopColor="#35d3ff" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(140,164,190,0.12)" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip contentStyle={{ background: "#0d1926", border: "1px solid rgba(140,164,190,.2)" }} />
-                <Area type="monotone" dataKey="attacks" stroke="#35d3ff" fill="url(#attacks)" strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="chart-card">
-          <div className="mb-4 flex items-center gap-2 text-white">
-            <AlertTriangle className="h-5 w-5 text-amberx" />
-            Severity Mix
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={severityData} dataKey="value" innerRadius={64} outerRadius={92} paddingAngle={3}>
-                  {severityData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                </Pie>
-                <Tooltip contentStyle={{ background: "#0d1926", border: "1px solid rgba(140,164,190,.2)" }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="chart-card">
-          <div className="mb-4 grid grid-cols-3 gap-3">
-            {[["CPU", data.cpu, Cpu], ["Memory", data.memory, MemoryStick], ["Disk", data.disk, HardDrive]].map(([label, value, Icon]) => {
-              const IconComponent = Icon as typeof Cpu;
-              return (
-                <div key={label as string} className="rounded-md border border-line bg-white/5 p-3">
-                  <IconComponent className="mb-2 h-4 w-4 text-cyanx" />
-                  <div className="text-xs text-slate-400">{label as string}</div>
-                  <div className="text-xl font-bold text-white">{Math.round(value as number)}%</div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="h-52">
-            <ResponsiveContainer>
-              <BarChart data={data.monthly_trend}>
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <Tooltip contentStyle={{ background: "#0d1926", border: "1px solid rgba(140,164,190,.2)" }} />
-                <Bar dataKey="alerts" fill="#3df2b7" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="chart-card">
-          <SectionTitle title="Live Feed" />
-          <div className="mt-4 space-y-3">
-            {[...live, ...data.live_feed].slice(0, 7).map((item, index) => (
-              <motion.div key={`${item.title}-${index}`} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="rounded-md border border-line bg-white/5 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-semibold text-white">{item.title}</div>
-                  <Badge severity={item.severity}>{item.severity}</Badge>
-                </div>
-                <div className="mt-1 text-xs text-slate-400">{item.source}</div>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="chart-card">
-          <SectionTitle title="MITRE ATT&CK" />
-          <div className="mt-4 space-y-3">
-            {data.mitre_matrix.map((row) => (
-              <div key={`${row.tactic}-${row.technique}`} className="rounded-md border border-line bg-white/5 p-3">
-                <div className="text-sm font-semibold text-cyan-50">{row.tactic}</div>
-                <div className="mt-1 text-xs text-slate-400">{row.technique}</div>
-                <div className="mt-2 h-1.5 rounded-full bg-white/10">
-                  <div className="h-1.5 rounded-full bg-cyanx" style={{ width: `${Math.min(100, Number(row.count) * 5)}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <Card className="chart-card">
-        <div className="mb-4 flex items-center gap-2 text-white">
-          <Database className="h-5 w-5 text-mintx" />
-          Recent Activity
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {data.recent_activity.map((item, index) => (
-            <div key={index} className="rounded-md border border-line bg-white/5 p-3 text-sm text-slate-300">{item.action}</div>
-          ))}
-        </div>
-      </Card>
-    </div>
-    </PageFrame>
-  );
+  const [range, setRange] = useState("7d");
+  const user = currentUser();
+  const notifications = useNotifications();
+  const dashboard = useQuery({ queryKey: ["dashboard", user?.id], queryFn: async () => (await api.get<DashboardMetrics>("/dashboard")).data, refetchInterval: 60000, retry: 1 });
+  const incidents = useQuery({ queryKey: ["incidents", user?.id], queryFn: async () => (await api.get<Incident[]>("/incidents")).data, enabled: !!hasPermission("incidents:read"), refetchInterval: 60000, retry: 1 });
+  const data = dashboard.data;
+  const severity = [{ name: "Critical", value: data?.critical_alerts ?? 0, color: "#f87171" }, { name: "High", value: data?.high_threats ?? 0, color: "#fbbf24" }, { name: "Medium", value: data?.medium_threats ?? 0, color: "#60a5fa" }, { name: "Low", value: data?.low_threats ?? 0, color: "#34d399" }];
+  const total = severity.reduce((sum, row) => sum + row.value, 0);
+  const active = incidents.data?.filter(row => !["closed", "resolved"].includes(row.status)) ?? [];
+  const trend = range === "7d" ? data?.weekly_trend : data?.monthly_trend;
+  const hour = new Date().getHours();
+  const refresh = () => { void dashboard.refetch(); void notifications.refetch(); if (hasPermission("incidents:read")) void incidents.refetch(); };
+  return <div className="soc-dashboard">
+    <div className="page-heading"><div><p className="eyebrow">Good {hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}, {user?.full_name?.split(" ")[0] ?? "Analyst"}</p><h1>Security Operations Overview</h1><p>Threats, investigations, and activity across your organization.</p></div><button className="text-button" onClick={refresh} disabled={dashboard.isFetching}><RefreshCw size={16} className={dashboard.isFetching ? "spin" : ""} /> Refresh</button></div>
+    {user?.email?.endsWith("@cybershield.local") && <div className="test-banner">Test workspace <span>Development records are shown in this account.</span></div>}
+    {dashboard.isError ? <div className="section-error" role="alert">Unable to load the security overview. <button className="text-button" onClick={() => dashboard.refetch()}>Retry</button></div> : <>
+      <div className="kpi-grid">{[
+        { label: "Security logs", value: data?.total_logs, icon: Database, tone: "blue", detail: "Recorded across connected sources", permission: "logs:read" },
+        { label: "Critical alerts", value: data?.critical_alerts, icon: ShieldAlert, tone: "red", detail: "Recorded critical detections", permission: "alerts:read" },
+        { label: "Open incidents", value: data?.incidents, icon: Siren, tone: "amber", detail: "Excludes closed and resolved", permission: "incidents:read" },
+        { label: "Alerts today", value: data?.todays_attacks, icon: Activity, tone: "green", detail: "Since 00:00 UTC", permission: "alerts:read" },
+      ].filter(metric => hasPermission(metric.permission)).map(metric => <article key={metric.label} className={`kpi ${metric.tone}`}><div><span>{metric.label}</span><metric.icon size={19} /></div>{dashboard.isPending ? <div className="skeleton metric-skeleton" /> : <strong>{metric.value?.toLocaleString() ?? "Unavailable"}</strong>}<p>{metric.detail}</p></article>)}</div>
+      <div className="overview-grid"><section className="soc-section"><div className="panel-heading"><h2><Activity size={17} /> Threat activity</h2><div className="segmented" aria-label="Activity period">{["7d", "30d"].map(value => <button key={value} aria-pressed={range === value} onClick={() => setRange(value)}>{value}</button>)}</div></div><p className="section-caption">Recorded alerts per day (UTC)</p>
+        {dashboard.isPending ? <div className="skeleton chart-skeleton" /> : !hasPermission("alerts:read") ? <div className="empty-state">Alert telemetry is not available for your role.</div> : <div className="activity-chart" role="img" aria-label={`${range} alert activity, ${trend?.reduce((sum, row) => sum + Number(row.attacks ?? row.alerts ?? 0), 0) ?? 0} recorded alerts`}><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 20, right: 12, left: -28, bottom: 0 }}><CartesianGrid vertical={false} stroke="#303439" strokeDasharray="3 4" /><XAxis dataKey="name" tick={{ fill: "#a6adb7", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={28} /><YAxis allowDecimals={false} tick={{ fill: "#a6adb7", fontSize: 11 }} tickLine={false} axisLine={false} /><Tooltip contentStyle={{ background: "#202327", border: "1px solid #454b54", borderRadius: 6 }} /><Area name="Alerts" type="monotone" dataKey={range === "7d" ? "attacks" : "alerts"} stroke="#60a5fa" fill="#60a5fa" fillOpacity={0.12} strokeWidth={2} isAnimationActive={false} /></AreaChart></ResponsiveContainer></div>}
+      </section><section className="soc-section"><div className="panel-heading"><h2><ShieldCheck size={17} /> Security posture</h2></div><div className="posture-summary"><span className="posture-symbol"><ShieldCheck size={30} /></span><div><strong>{total ? `${total} classified alerts` : "No classified alerts"}</strong><p>Posture score not configured</p></div></div><h3 className="distribution-title">Threat distribution</h3>{severity.map(row => <div key={row.name} className="distribution-row"><span><i style={{ background: row.color }} />{row.name}</span><div className="distribution-track"><div style={{ width: `${total ? row.value / total * 100 : 0}%`, background: row.color }} /></div><b>{row.value}</b></div>)}</section></div>
+    </>}
+    <div className="overview-grid"><section className="soc-section"><div className="panel-heading"><h2><Siren size={17} /> Active incidents</h2>{hasPermission("incidents:read") && <Link to="/incidents">View all <ArrowUpRight size={14} /></Link>}</div>
+      {!hasPermission("incidents:read") ? <div className="empty-state">Incident access is not included in your role.</div> : incidents.isPending ? <div className="skeleton-list">{[1, 2, 3].map(i => <div key={i} className="skeleton" />)}</div> : incidents.isError ? <div className="empty-state"><strong>Unable to load incidents</strong><button className="text-button" onClick={() => incidents.refetch()}>Retry</button></div> : !active.length ? <div className="empty-state"><ShieldCheck size={25} /><strong>No active incidents</strong><span>No open investigations in your organization.</span></div> : <div className="table-scroll"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Status</th><th>Assignee</th><th>Created</th></tr></thead><tbody>{active.slice(0, 5).map(item => <tr key={item.id}><td><Link to={`/incidents?id=${item.id}`}><small>INC-{item.id}</small>{item.title}</Link></td><td><Badge severity={item.severity}>{item.severity}</Badge></td><td><span className="status-tag">{item.status}</span></td><td>{item.assignee}</td><td>{relativeTime(item.created_at)}</td></tr>)}</tbody></table></div>}
+    </section><section className="soc-section"><div className="panel-heading"><h2>Recent notifications</h2><Link to="/notifications">View all <ArrowUpRight size={14} /></Link></div><NotificationContent compact /></section></div>
+    <div className="overview-grid"><section className="soc-section"><div className="panel-heading"><h2>Recent security events</h2>{hasPermission("alerts:read") && <Link to="/detection">View alerts <ArrowUpRight size={14} /></Link>}</div>{dashboard.isPending ? <div className="skeleton-list"><div className="skeleton" /></div> : dashboard.isError ? <div className="empty-state"><strong>Unable to load events</strong><button className="text-button" onClick={() => dashboard.refetch()}>Retry</button></div> : !data?.live_feed.length ? <div className="empty-state"><Activity size={24} /><strong>No recent security events</strong><span>New authorized detections will appear here.</span></div> : <ol className="event-timeline">{data.live_feed.slice(0, 5).map((item, index) => <li key={item.id ?? index}><span className={`severity-dot ${item.severity}`} /><div><Link to={`/detection?id=${item.id ?? ""}`}>{item.title}</Link><p>{item.source} <span>{item.created_at && relativeTime(item.created_at)}</span></p></div><Badge severity={item.severity}>{item.severity}</Badge></li>)}</ol>}</section>
+    <section className="soc-section"><div className="panel-heading"><h2>Host resource usage</h2></div><div className="resource-meters">{[["CPU", data?.cpu], ["Memory", data?.memory], ["Disk", data?.disk]].map(([label, value]) => <div key={String(label)}><span>{label}</span><strong>{typeof value === "number" ? `${Math.round(value)}%` : "Unavailable"}</strong><meter aria-label={String(label)} min={0} max={100} value={Number(value ?? 0)} /></div>)}</div><div className="panel-heading"><h2>MITRE ATT&CK</h2></div>{data?.mitre_matrix.length ? <ul className="mitre-list">{data.mitre_matrix.map(row => <li key={`${row.tactic}-${row.technique}`}><span><strong>{row.tactic}</strong><small>{row.technique}</small></span><b>{row.count}</b></li>)}</ul> : <div className="empty-state">No recorded technique mappings.</div>}</section></div>
+    {!!data?.recent_activity.length && <section className="soc-section"><div className="panel-heading"><h2>Recent log activity</h2></div><ul className="log-activity">{data.recent_activity.map((item, i) => <li key={i}><span>{item.action}</span><time>{relativeTime(item.time)}</time></li>)}</ul></section>}
+  </div>;
 }

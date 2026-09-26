@@ -8,6 +8,8 @@ import { Detection } from "./pages/Detection";
 import { Incidents } from "./pages/Incidents";
 import { GenericModule } from "./pages/GenericModule";
 import { ThreatIntel } from "./pages/ThreatIntel";
+import { Notifications } from "./pages/Notifications";
+import { Toasts } from "./components/Toasts";
 import { currentUser, hasPermission } from "./lib/api";
 
 function Protected() {
@@ -31,10 +33,10 @@ function Unauthorized() {
 
 export default function App() {
   return (
-    <Routes>
+    <><Toasts /><Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<Protected />}>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<RequirePermission permission="dashboard:read"><Dashboard /></RequirePermission>} />
         <Route path="/logs" element={<RequirePermission permission="logs:read"><Logs /></RequirePermission>} />
         <Route path="/detection" element={<RequirePermission permission="alerts:read"><Detection /></RequirePermission>} />
         <Route path="/incidents" element={<RequirePermission permission="incidents:read"><Incidents /></RequirePermission>} />
@@ -44,11 +46,11 @@ export default function App() {
         <Route path="/malware" element={<RequirePermission permission="malware:analyze"><GenericModule title="Malware Analysis" endpoint="/malware" /></RequirePermission>} />
         <Route path="/vulnerabilities" element={<RequirePermission permission="vulnerability:scan"><GenericModule title="Vulnerability Scanner" endpoint="/vulnerabilities" /></RequirePermission>} />
         <Route path="/reports" element={<RequirePermission permission="reports:read"><GenericModule title="Reports" endpoint="/reports" /></RequirePermission>} />
-        <Route path="/notifications" element={<GenericModule title="Notifications" endpoint="/notifications" />} />
+        <Route path="/notifications" element={<RequirePermission permission="dashboard:read"><Notifications /></RequirePermission>} />
         <Route path="/audit" element={<RequirePermission permission="audit:read"><GenericModule title="Audit Logs" endpoint="/audit" /></RequirePermission>} />
         <Route path="/settings" element={<RequirePermission permission="settings:read"><GenericModule title="System Settings" endpoint="/settings" /></RequirePermission>} />
         <Route path="/unauthorized" element={<Unauthorized />} />
       </Route>
-    </Routes>
+    </Routes></>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { api } from "../lib/api";
+import { api, hasPermission } from "../lib/api";
 import { Badge, Button, Card, Input, SectionTitle } from "../components/ui";
 
 type Incident = {
@@ -29,7 +29,7 @@ export function Incidents() {
   return (
     <div className="space-y-6">
       <SectionTitle title="Incident Management" subtitle="Create, assign, track evidence, and drive response timelines." />
-      <Card>
+      {hasPermission("incidents:create") && <Card>
         <div className="flex flex-col gap-3 md:flex-row">
           <Input value={title} onChange={(event) => setTitle(event.target.value)} />
           <Button onClick={create}>
@@ -37,7 +37,7 @@ export function Incidents() {
             Create
           </Button>
         </div>
-      </Card>
+      </Card>}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data.map((incident) => (
           <Card key={incident.id}>
@@ -53,4 +53,3 @@ export function Incidents() {
     </div>
   );
 }
-

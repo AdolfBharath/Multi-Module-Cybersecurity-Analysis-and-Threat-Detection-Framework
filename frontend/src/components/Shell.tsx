@@ -1,167 +1,97 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import {
-  Activity,
-  Bell,
-  Bug,
-  ChartNoAxesCombined,
-  FileBarChart,
-  Fingerprint,
-  Gauge,
-  Globe2,
-  HardDriveUpload,
-  Lock,
-  Network,
-  Radar,
-  Search,
-  Settings,
-  Shield,
-  Siren,
-  Terminal,
-  UserCircle,
-} from "lucide-react";
-import { cn } from "../lib/utils";
-import { api, authenticatedWsUrl, hasPermission } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Bell, Bug, ChartNoAxesCombined, CheckCheck, ChevronDown, FileBarChart, Fingerprint, Gauge, Globe2, HardDriveUpload, LogOut, Menu, Network, Radar, Search, Settings, Shield, Siren, Terminal, X } from "lucide-react";
+import { api, clearSession, currentUser, hasPermission } from "../lib/api";
+import { NotificationProvider, useNotifications } from "../lib/notifications";
+import { NotificationContent } from "./NotificationList";
 
-const nav = [
-  { to: "/", label: "Dashboard", icon: Gauge, permission: "dashboard:read" },
-  { to: "/logs", label: "Logs", icon: HardDriveUpload, permission: "logs:read" },
-  { to: "/detection", label: "Detection", icon: Radar, permission: "alerts:read" },
-  { to: "/anomaly", label: "Anomaly", icon: ChartNoAxesCombined, permission: "alerts:read" },
-  { to: "/network", label: "Network", icon: Network, permission: "dashboard:read" },
-  { to: "/malware", label: "Malware", icon: Bug, permission: "malware:analyze" },
-  { to: "/vulnerabilities", label: "Vulnerabilities", icon: Terminal, permission: "vulnerability:scan" },
-  { to: "/intel", label: "Threat Intel", icon: Globe2, permission: "threat_intel:read" },
-  { to: "/incidents", label: "Incidents", icon: Siren, permission: "incidents:read" },
-  { to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read" },
-  { to: "/notifications", label: "Notifications", icon: Bell, permission: "dashboard:read" },
-  { to: "/audit", label: "Audit", icon: Fingerprint, permission: "audit:read" },
-  { to: "/settings", label: "Settings", icon: Settings, permission: "settings:read" },
+const groups = [
+  { label: "Overview", items: [{ to: "/", label: "Dashboard", icon: Gauge, permission: "dashboard:read" }] },
+  { label: "Security operations", items: [
+    { to: "/detection", label: "Alerts & detection", icon: Radar, permission: "alerts:read" },
+    { to: "/incidents", label: "Incidents", icon: Siren, permission: "incidents:read" },
+    { to: "/network", label: "Network events", icon: Network, permission: "dashboard:read" },
+    { to: "/logs", label: "Security logs", icon: HardDriveUpload, permission: "logs:read" },
+    { to: "/anomaly", label: "Anomaly detection", icon: ChartNoAxesCombined, permission: "alerts:read" },
+  ] },
+  { label: "Threat management", items: [
+    { to: "/intel", label: "Threat intelligence", icon: Globe2, permission: "threat_intel:read" },
+    { to: "/malware", label: "Malware analysis", icon: Bug, permission: "malware:analyze" },
+    { to: "/vulnerabilities", label: "Vulnerabilities", icon: Terminal, permission: "vulnerability:scan" },
+  ] },
+  { label: "Reporting", items: [
+    { to: "/reports", label: "Reports", icon: FileBarChart, permission: "reports:read" },
+    { to: "/audit", label: "Audit logs", icon: Fingerprint, permission: "audit:read" },
+  ] },
+  { label: "System", items: [
+    { to: "/notifications", label: "Notifications", icon: Bell, permission: "dashboard:read" },
+    { to: "/settings", label: "Settings", icon: Settings, permission: "settings:read" },
+  ] },
 ];
 
-export function Shell() {
+function Workspace() {
+  const user = currentUser();
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("cybershield_user") ?? "null");
-  const [unreadCount, setUnreadCount] = useState(0);
-
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { unread, update, updating, connected } = useNotifications();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [panel, setPanel] = useState<"notifications" | "profile" | null>(null);
+  const [search, setSearch] = useState("");
+  const header = useRef<HTMLElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const bell = useRef<HTMLButtonElement>(null);
+  const profile = useRef<HTMLButtonElement>(null);
+  const visibleGroups = groups.map(group => ({ ...group, items: group.items.filter(item => hasPermission(item.permission)) })).filter(group => group.items.length);
+  useEffect(() => { setMobileOpen(false); setPanel(null); setSearch(""); }, [location.pathname]);
   useEffect(() => {
-    if (!hasPermission("dashboard:read")) return;
-    let active = true;
-    let socket: WebSocket | null = null;
-    async function loadUnreadCount() {
-      try {
-        const response = await api.get("/notifications/unread-count");
-        if (active) setUnreadCount(Number(response.data.data.unread_count ?? 0));
-      } catch {
-        if (active) setUnreadCount(0);
+    const end = () => { queryClient.clear(); navigate("/login", { replace: true }); };
+    window.addEventListener("cybershield:session-ended", end);
+    return () => window.removeEventListener("cybershield:session-ended", end);
+  }, [navigate, queryClient]);
+  useEffect(() => {
+    const outside = (event: PointerEvent) => { if (!header.current?.contains(event.target as Node)) { setPanel(null); setSearch(""); } };
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { if (mobileOpen) toggle.current?.focus(); else if (panel === "notifications") bell.current?.focus(); else if (panel) profile.current?.focus(); setMobileOpen(false); setPanel(null); setSearch(""); }
+      if (event.key === "Tab" && mobileOpen) {
+        const elements = sidebar.current?.querySelectorAll<HTMLElement>("a,button");
+        if (!elements?.length) return;
+        const first = elements[0], last = elements[elements.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
       }
-    }
-    loadUnreadCount();
-    try {
-      socket = new WebSocket(authenticatedWsUrl());
-      socket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        if (active && message.type === "notification_snapshot") {
-          setUnreadCount(Number(message.unread_count ?? 0));
-        }
-      };
-    } catch {
-      socket = null;
-    }
-    const timer = window.setInterval(loadUnreadCount, 30000);
-    return () => {
-      active = false;
-      socket?.close();
-      window.clearInterval(timer);
     };
-  }, []);
-
-  return (
-    <div className="min-h-screen cyber-grid">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-line bg-abyss/86 p-4 backdrop-blur-xl lg:block">
-        <div className="flex items-center gap-3 px-2 py-3">
-          <motion.div initial={{ rotate: -8, scale: 0.92 }} animate={{ rotate: 0, scale: 1 }} className="flex h-11 w-11 items-center justify-center rounded-lg border border-cyanx/40 bg-cyanx/15">
-            <Shield className="h-6 w-6 text-cyanx" />
-          </motion.div>
-          <div>
-            <div className="text-lg font-bold text-white">CyberShield XDR</div>
-            <div className="text-xs text-slate-400">Enterprise SOC Platform</div>
-          </div>
+    document.addEventListener("pointerdown", outside); document.addEventListener("keydown", keyboard);
+    if (mobileOpen) sidebar.current?.querySelector<HTMLElement>("button,a")?.focus();
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", keyboard); };
+  }, [mobileOpen, panel]);
+  async function logout() {
+    try { await api.post("/auth/logout", { access_token: localStorage.getItem("cybershield_token"), refresh_token: localStorage.getItem("cybershield_refresh_token") }); }
+    finally { clearSession(); }
+  }
+  return <div className={`workspace ${collapsed ? "sidebar-collapsed" : ""}`}>
+    {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
+    <aside ref={sidebar} className={`soc-sidebar ${mobileOpen ? "mobile-open" : ""}`} aria-label="Main navigation">
+      <div className="sidebar-brand"><Shield size={24} /><span>CyberShield <b>XDR</b></span><button className="icon-button mobile-close" aria-label="Close navigation" onClick={() => { setMobileOpen(false); toggle.current?.focus(); }}><X size={18} /></button></div>
+      <nav>{visibleGroups.map(group => <div className="nav-group" key={group.label}><div className="nav-label">{group.label}</div>{group.items.map(item => <NavLink end={item.to === "/"} title={item.label} aria-label={item.label} to={item.to} key={item.to}><item.icon size={18} /><span>{item.label}</span></NavLink>)}</div>)}</nav>
+      <div className="sidebar-footer"><span className={`connection-dot ${connected ? "connected" : ""}`} /><span>{connected ? "Notifications connected" : "Reconnecting notifications"}</span></div>
+    </aside>
+    <div className="workspace-main" inert={mobileOpen || undefined}>
+      <header ref={header} className="soc-header">
+        <button ref={toggle} className="icon-button" aria-label="Toggle navigation" aria-expanded={mobileOpen || !collapsed} onClick={() => window.innerWidth < 1024 ? setMobileOpen(!mobileOpen) : setCollapsed(!collapsed)}><Menu size={20} /></button>
+        <Link to="/" className="header-brand">CyberShield <b>XDR</b></Link>
+        <div className="workspace-search"><Search size={16} /><input aria-label="Find a module" placeholder="Find a module..." value={search} onChange={event => setSearch(event.target.value)} />{search && <div className="search-results">{visibleGroups.flatMap(group => group.items).filter(item => item.label.toLowerCase().includes(search.toLowerCase())).map(item => <Link key={item.to} to={item.to}>{item.label}</Link>)}{!visibleGroups.some(group => group.items.some(item => item.label.toLowerCase().includes(search.toLowerCase()))) && <p>No matching modules</p>}</div>}</div>
+        <div className="header-actions"><button ref={bell} className="icon-button bell-button" aria-label={`Notifications, ${unread} unread`} aria-expanded={panel === "notifications"} aria-controls="notification-popover" onClick={() => setPanel(panel === "notifications" ? null : "notifications")}><Bell size={19} />{unread > 0 && <span key={unread} className="unread-badge">{unread > 99 ? "99+" : unread}</span>}</button>
+          <button ref={profile} className="profile-button" aria-label="Open profile menu" aria-expanded={panel === "profile"} onClick={() => setPanel(panel === "profile" ? null : "profile")}><span className="avatar">{(user?.full_name ?? "U").split(" ").map((part: string) => part[0]).slice(0, 2).join("")}</span><span className="profile-copy"><strong>{user?.full_name}</strong><small>{user?.role}</small></span><ChevronDown size={14} /></button>
         </div>
-        <nav className="mt-6 space-y-1">
-          {nav.filter((item) => hasPermission(item.permission)).map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "nav-item flex h-10 items-center gap-3 rounded-md px-3 text-sm text-slate-300 transition hover:bg-white/7 hover:text-white",
-                  isActive && "border border-cyanx/25 bg-cyanx/13 text-cyan-50 shadow-glow",
-                )
-              }
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <main className="lg:pl-72">
-        <header className="sticky top-0 z-10 border-b border-line bg-abyss/76 px-4 py-3 backdrop-blur-xl lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="relative max-w-xl flex-1">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-              <input className="h-10 w-full rounded-md border border-line bg-white/5 pl-10 pr-3 text-sm outline-none focus:border-cyanx/60" placeholder="Search alerts, incidents, indicators..." />
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="hidden items-center gap-2 rounded-full border border-mintx/30 bg-mintx/10 px-3 py-1.5 text-xs text-mintx md:flex">
-                <span className="status-pulse h-2 w-2 rounded-full bg-mintx" />
-                <Activity className="h-3.5 w-3.5" />
-                Live telemetry
-              </div>
-              <NavLink to="/notifications" className="relative rounded-md border border-line p-2 text-slate-300 hover:bg-white/7" title="Notifications">
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-dangerx px-1.5 text-center text-[10px] font-bold text-white">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                ) : null}
-              </NavLink>
-              <div className="flex items-center gap-2 text-sm text-slate-300">
-                <UserCircle className="h-5 w-5" />
-                <span className="hidden sm:inline">{user?.full_name ?? "SOC Analyst"}</span>
-              </div>
-              <button
-                className="rounded-md border border-line p-2 text-slate-300 hover:bg-white/7"
-                title="Sign out"
-                onClick={async () => {
-                  const accessToken = localStorage.getItem("cybershield_token");
-                  const refreshToken = localStorage.getItem("cybershield_refresh_token");
-                  try {
-                    if (accessToken) {
-                      await fetch(`${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1"}/auth/logout`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-                        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
-                      });
-                    }
-                  } catch {
-                    // Local session cleanup still happens if the backend is unavailable.
-                  }
-                  localStorage.clear();
-                  navigate("/login");
-                }}
-              >
-                <Lock className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-        <motion.div className="p-4 lg:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-          <Outlet />
-        </motion.div>
-      </main>
+        {panel === "notifications" && <section id="notification-popover" aria-label="Notifications" className="notification-popover"><div className="panel-heading"><h2>Notifications <span>{unread}</span></h2><button className="icon-button" title="Mark all as read" aria-label="Mark all as read" disabled={!unread || updating} onClick={() => update({ action: "read-all" })}><CheckCheck size={18} /></button><button className="icon-button" aria-label="Close notifications" onClick={() => { setPanel(null); bell.current?.focus(); }}><X size={18} /></button></div><NotificationContent compact /><Link className="popover-footer" to="/notifications">View all notifications</Link></section>}
+        {panel === "profile" && <div className="profile-popover"><strong>{user?.full_name}</strong><small>{user?.role}</small>{hasPermission("settings:read") && <Link to="/settings"><Settings size={16} /> Settings</Link>}<button onClick={() => { void logout().catch(() => undefined); }}><LogOut size={16} /> Sign out</button></div>}
+      </header>
+      <main className="workspace-content"><Outlet /></main>
     </div>
-  );
+  </div>;
 }
+export function Shell() { return <NotificationProvider><Workspace /></NotificationProvider>; }
