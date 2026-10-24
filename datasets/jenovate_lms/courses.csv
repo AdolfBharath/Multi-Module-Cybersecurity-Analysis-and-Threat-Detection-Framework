@@ -1,0 +1,6 @@
+course_id,course_name,category,level,mentor_id,status
+CRS-001,Python Foundations,programming,beginner,USR-0003,published
+CRS-002,Applied Cyber Defense,cybersecurity,intermediate,USR-0004,published
+CRS-003,Modern Web Development,web development,intermediate,USR-0005,published
+CRS-004,Practical Machine Learning,AI/ML,advanced,USR-0006,published
+CRS-005,Data Analytics Essentials,data analytics,beginner,USR-0007,published

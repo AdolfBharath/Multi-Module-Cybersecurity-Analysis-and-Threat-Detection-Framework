@@ -99,6 +99,11 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker.celery_app inspect ping --destination=celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - backend_net
 
@@ -114,6 +119,12 @@ services:
       - backend
     cap_drop:
       - ALL
+    # Nginx needs these capabilities only to prepare its temp directories and
+    # switch from the master process to its unprivileged worker user.
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     networks:

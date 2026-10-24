@@ -25,7 +25,6 @@ export function Dashboard() {
   const refresh = () => { void dashboard.refetch(); void notifications.refetch(); if (hasPermission("incidents:read")) void incidents.refetch(); };
   return <div className="soc-dashboard">
     <div className="page-heading"><div><p className="eyebrow">Good {hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}, {user?.full_name?.split(" ")[0] ?? "Analyst"}</p><h1>Security Operations Overview</h1><p>Threats, investigations, and activity across your organization.</p></div><button className="text-button" onClick={refresh} disabled={dashboard.isFetching}><RefreshCw size={16} className={dashboard.isFetching ? "spin" : ""} /> Refresh</button></div>
-    {user?.email?.endsWith("@cybershield.local") && <div className="test-banner">Test workspace <span>Development records are shown in this account.</span></div>}
     {dashboard.isError ? <div className="section-error" role="alert">Unable to load the security overview. <button className="text-button" onClick={() => dashboard.refetch()}>Retry</button></div> : <>
       <div className="kpi-grid">{[
         { label: "Security logs", value: data?.total_logs, icon: Database, tone: "blue", detail: "Recorded across connected sources", permission: "logs:read" },

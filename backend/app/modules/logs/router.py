@@ -22,10 +22,10 @@ def list_logs(
     severity: str = "",
     skip: int = 0,
     limit: int = Query(50, le=200),
-    _: User = Depends(require_permissions("logs:read")),
+    user: User = Depends(require_permissions("logs:read")),
     db: Session = Depends(get_db),
 ) -> list[SecurityLog]:
-    query = db.query(SecurityLog)
+    query = db.query(SecurityLog).filter(SecurityLog.organization_id == user.organization_id)
     if search:
         query = query.filter(SecurityLog.message.ilike(f"%{search}%"))
     if severity:
@@ -35,13 +35,13 @@ def list_logs(
 
 @router.post("", response_model=LogRead)
 def create_log(payload: LogCreate, user: User = Depends(require_permissions("logs:read")), db: Session = Depends(get_db)) -> SecurityLog:
-    log = SecurityLog(**payload.model_dump())
+    log = SecurityLog(**payload.model_dump(), organization_id=user.organization_id)
     db.add(log)
     db.add(AuditLog(actor=user.email, action="logs:create", entity="logs", metadata_json={"source": payload.source}))
     for alert in analyze_text(payload.message, payload.source)["alerts"]:
         from app.db.models import Alert
 
-        db.add(Alert(**alert, status="open", tactic="Detection", technique=alert["title"]))
+        db.add(Alert(**alert, status="open", tactic="Detection", technique=alert["title"], organization_id=user.organization_id))
     db.commit()
     db.refresh(log)
     return log
@@ -59,16 +59,16 @@ def upload_logs(request: Request, file: UploadFile = File(...), user: User = Dep
         payload = json.loads(content)
         rows = payload if isinstance(payload, list) else [payload]
         for row in rows:
-            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "json"), message=str(row.get("message", row)), severity=row.get("severity", "info"), raw=row))
+            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "json"), message=str(row.get("message", row)), severity=row.get("severity", "info"), raw=row, organization_id=user.organization_id))
             created += 1
     elif safe_name.endswith(".csv"):
         for row in csv.DictReader(io.StringIO(content)):
-            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "csv"), message=row.get("message", str(row)), severity=row.get("severity", "info"), raw=row))
+            db.add(SecurityLog(source=row.get("source", safe_name), log_type=row.get("log_type", "csv"), message=row.get("message", str(row)), severity=row.get("severity", "info"), raw=row, organization_id=user.organization_id))
             created += 1
     else:
         for line in content.splitlines():
             if line.strip():
-                db.add(SecurityLog(source=safe_name, log_type="text", message=line[:4000], severity="info", raw={"line": line[:4000]}))
+                db.add(SecurityLog(source=safe_name, log_type="text", message=line[:4000], severity="info", raw={"line": line[:4000]}, organization_id=user.organization_id))
                 created += 1
     db.add(AuditLog(actor=user.email, action="logs:upload", entity="logs", metadata_json={"file": safe_name, "count": created, "size": len(content_bytes)}, ip_address=request.client.host if request.client else ""))
     db.commit()

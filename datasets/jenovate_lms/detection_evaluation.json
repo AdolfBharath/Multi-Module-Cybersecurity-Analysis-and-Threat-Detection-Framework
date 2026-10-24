@@ -1,0 +1,14 @@
+{
+  "dataset": "jenovate_lms",
+  "events": 320,
+  "confusion_matrix": {
+    "tp": 20,
+    "fp": 0,
+    "tn": 290,
+    "fn": 10
+  },
+  "precision": 1.0,
+  "recall": 0.6667,
+  "f1": 0.8,
+  "note": "Synthetic labels are evaluation-only and are not supplied to the detector."
+}

@@ -1,0 +1,31 @@
+module_id,course_id,module_title,module_order,content_type,duration_minutes,status
+MOD-001-01,CRS-001,Python Foundations Module 1,1,video,55,published
+MOD-001-02,CRS-001,Python Foundations Module 2,2,lab,65,published
+MOD-001-03,CRS-001,Python Foundations Module 3,3,video,75,published
+MOD-001-04,CRS-001,Python Foundations Module 4,4,lab,85,published
+MOD-001-05,CRS-001,Python Foundations Module 5,5,video,95,published
+MOD-001-06,CRS-001,Python Foundations Module 6,6,lab,105,published
+MOD-002-01,CRS-002,Applied Cyber Defense Module 1,1,video,55,published
+MOD-002-02,CRS-002,Applied Cyber Defense Module 2,2,lab,65,published
+MOD-002-03,CRS-002,Applied Cyber Defense Module 3,3,video,75,published
+MOD-002-04,CRS-002,Applied Cyber Defense Module 4,4,lab,85,published
+MOD-002-05,CRS-002,Applied Cyber Defense Module 5,5,video,95,published
+MOD-002-06,CRS-002,Applied Cyber Defense Module 6,6,lab,105,published
+MOD-003-01,CRS-003,Modern Web Development Module 1,1,video,55,published
+MOD-003-02,CRS-003,Modern Web Development Module 2,2,lab,65,published
+MOD-003-03,CRS-003,Modern Web Development Module 3,3,video,75,published
+MOD-003-04,CRS-003,Modern Web Development Module 4,4,lab,85,published
+MOD-003-05,CRS-003,Modern Web Development Module 5,5,video,95,published
+MOD-003-06,CRS-003,Modern Web Development Module 6,6,lab,105,published
+MOD-004-01,CRS-004,Practical Machine Learning Module 1,1,video,55,published
+MOD-004-02,CRS-004,Practical Machine Learning Module 2,2,lab,65,published
+MOD-004-03,CRS-004,Practical Machine Learning Module 3,3,video,75,published
+MOD-004-04,CRS-004,Practical Machine Learning Module 4,4,lab,85,published
+MOD-004-05,CRS-004,Practical Machine Learning Module 5,5,video,95,published
+MOD-004-06,CRS-004,Practical Machine Learning Module 6,6,lab,105,published
+MOD-005-01,CRS-005,Data Analytics Essentials Module 1,1,video,55,published
+MOD-005-02,CRS-005,Data Analytics Essentials Module 2,2,lab,65,published
+MOD-005-03,CRS-005,Data Analytics Essentials Module 3,3,video,75,published
+MOD-005-04,CRS-005,Data Analytics Essentials Module 4,4,lab,85,published
+MOD-005-05,CRS-005,Data Analytics Essentials Module 5,5,video,95,published
+MOD-005-06,CRS-005,Data Analytics Essentials Module 6,6,lab,105,published

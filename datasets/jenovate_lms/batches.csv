@@ -1,0 +1,6 @@
+batch_id,batch_name,course_id,mentor_id,start_date,end_date,status
+BAT-001,Python Foundations Cohort 2026-1,CRS-001,USR-0003,2026-01-15,2026-11-30,active
+BAT-002,Applied Cyber Defense Cohort 2026-2,CRS-002,USR-0004,2026-01-15,2026-11-30,active
+BAT-003,Modern Web Development Cohort 2026-3,CRS-003,USR-0005,2026-01-15,2026-11-30,active
+BAT-004,Practical Machine Learning Cohort 2026-4,CRS-004,USR-0006,2026-01-15,2026-11-30,active
+BAT-005,Data Analytics Essentials Cohort 2026-5,CRS-005,USR-0007,2026-01-15,2026-11-30,active

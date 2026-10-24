@@ -1,0 +1,6 @@
+quiz_id,course_id,quiz_title,total_marks,passing_marks,status
+QZ-001,CRS-001,Python Foundations Knowledge Check,100,50,published
+QZ-002,CRS-002,Applied Cyber Defense Knowledge Check,100,50,published
+QZ-003,CRS-003,Modern Web Development Knowledge Check,100,50,published
+QZ-004,CRS-004,Practical Machine Learning Knowledge Check,100,50,published
+QZ-005,CRS-005,Data Analytics Essentials Knowledge Check,100,50,published

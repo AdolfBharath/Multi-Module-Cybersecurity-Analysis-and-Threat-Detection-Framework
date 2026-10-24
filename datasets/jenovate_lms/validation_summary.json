@@ -1,0 +1,25 @@
+{
+  "valid": true,
+  "rows": {
+    "users": 87,
+    "courses": 5,
+    "batches": 5,
+    "enrollments": 80,
+    "course_modules": 30,
+    "student_progress": 80,
+    "quizzes": 5,
+    "quiz_attempts": 80,
+    "task_submissions": 80,
+    "announcements": 5,
+    "security_events": 320
+  },
+  "null_counts": {
+    "users": 0,
+    "courses": 0,
+    "security_events": 0
+  },
+  "labels": {
+    "suspicious": 30,
+    "benign": 290
+  }
+}

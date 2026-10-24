@@ -1,0 +1,81 @@
+dataset,field,data_type,description
+users,user_id,string,Unique fictional user identifier
+users,full_name,string,Fictional display name
+users,email,string,Reserved example.test email
+users,role,enum,admin mentor or student
+users,status,enum,active or inactive
+users,created_at,datetime,Timezone-aware account creation time
+courses,course_id,string,Unique course identifier
+courses,course_name,string,Fictional course title
+courses,category,string,Academic category
+courses,level,enum,beginner intermediate or advanced
+courses,mentor_id,string,Referenced mentor user identifier
+courses,status,enum,published
+batches,batch_id,string,Unique batch identifier
+batches,batch_name,string,Fictional batch title
+batches,course_id,string,Referenced course identifier
+batches,mentor_id,string,Referenced mentor identifier
+batches,start_date,date,Start date
+batches,end_date,date,End date
+batches,status,enum,active
+enrollments,enrollment_id,string,Unique enrollment identifier
+enrollments,student_id,string,Referenced student identifier
+enrollments,course_id,string,Referenced course identifier
+enrollments,batch_id,string,Referenced batch identifier
+enrollments,enrollment_date,date,Enrollment date
+enrollments,enrollment_status,enum,active
+course_modules,module_id,string,Unique module identifier
+course_modules,course_id,string,Referenced course identifier
+course_modules,module_title,string,Module title
+course_modules,module_order,integer,Positive per-course ordering
+course_modules,content_type,enum,video or lab
+course_modules,duration_minutes,integer,Content duration
+course_modules,status,enum,published
+student_progress,progress_id,string,Unique progress identifier
+student_progress,student_id,string,Referenced student identifier
+student_progress,course_id,string,Referenced course identifier
+student_progress,modules_completed,integer,Completed module count
+student_progress,total_modules,integer,Available module count
+student_progress,progress_percent,number,0 through 100
+student_progress,last_activity_date,date,Last activity date
+quizzes,quiz_id,string,Unique quiz identifier
+quizzes,course_id,string,Referenced course identifier
+quizzes,quiz_title,string,Quiz title
+quizzes,total_marks,integer,Maximum score
+quizzes,passing_marks,integer,Pass threshold
+quizzes,status,enum,published
+quiz_attempts,attempt_id,string,Unique attempt identifier
+quiz_attempts,student_id,string,Referenced student identifier
+quiz_attempts,quiz_id,string,Referenced quiz identifier
+quiz_attempts,attempt_date,date,Attempt date
+quiz_attempts,marks_obtained,integer,Score achieved
+quiz_attempts,total_marks,integer,Maximum score
+quiz_attempts,result,enum,pass or fail
+task_submissions,submission_id,string,Unique submission identifier
+task_submissions,student_id,string,Referenced student identifier
+task_submissions,course_id,string,Referenced course identifier
+task_submissions,batch_id,string,Referenced batch identifier
+task_submissions,task_title,string,Synthetic task title
+task_submissions,submitted_at,datetime,Submission timestamp
+task_submissions,status,enum,graded
+task_submissions,marks,integer,Assigned marks
+task_submissions,mentor_feedback,string,Synthetic feedback
+announcements,announcement_id,string,Unique announcement identifier
+announcements,batch_id,string,Referenced batch identifier
+announcements,title,string,Announcement title
+announcements,message,string,Announcement content
+announcements,created_by_mentor_id,string,Authorized mentor identifier
+announcements,created_date,date,Creation date
+security_events,event_id,string,Unique security-event identifier
+security_events,timestamp,datetime,Timezone-aware event timestamp
+security_events,source,string,jenovate_lms provenance marker
+security_events,event_type,string,LMS audit action category
+security_events,actor_id,string,Referenced fictional actor
+security_events,actor_role,enum,Actor LMS role
+security_events,target_type,string,Protected object class
+security_events,target_id,string,Protected object identifier
+security_events,action,string,Human-readable telemetry
+security_events,outcome,enum,success or denied
+security_events,severity,enum,info through critical
+security_events,metadata,json,Non-sensitive generator provenance
+security_events,ground_truth,enum,Evaluation-only benign or suspicious label

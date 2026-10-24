@@ -14,6 +14,16 @@ def list_incidents(db: Session = Depends(get_db), user: User = Depends(require_p
     return db.query(Incident).filter(Incident.organization_id == user.organization_id).order_by(Incident.created_at.desc()).all()
 
 
+@router.get("/{incident_id}", response_model=IncidentRead)
+def get_incident(incident_id: int, db: Session = Depends(get_db), user: User = Depends(require_permissions("incidents:read"))) -> Incident:
+    from fastapi import HTTPException
+
+    incident = db.query(Incident).filter(Incident.id == incident_id, Incident.organization_id == user.organization_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
+
+
 @router.post("", response_model=IncidentRead)
 def create_incident(payload: IncidentCreate, db: Session = Depends(get_db), user: User = Depends(require_permissions("incidents:create"))) -> Incident:
     incident = Incident(**payload.model_dump(), organization_id=user.organization_id, timeline=[{"event": "Incident created", "actor": user.email}])

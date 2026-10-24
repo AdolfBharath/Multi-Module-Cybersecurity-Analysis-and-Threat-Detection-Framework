@@ -8,19 +8,20 @@ CyberShield XDR is a Dockerized enterprise SOC platform prototype with a FastAPI
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# Replace every placeholder in .env with private development values.
+docker compose up --build -d
 ```
 
 Services:
 
-- Frontend: 
-- Backend API:
-- OpenAPI: 
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000/api/v1`
+- OpenAPI: `http://localhost:8000/api/v1/docs`
 
-Demo credentials:
-
-- Email: `admin@cybershield.dev`
-- Password: `CyberShield!2026`
+No credentials are embedded in the repository. Configure `ADMIN_BOOTSTRAP_EMAIL`
+and `ADMIN_BOOTSTRAP_PASSWORD` only in a private environment file for first-run
+provisioning. Development-only role accounts can be loaded through
+`backend/app/seed_test_data.py` with environment-provided passwords.
 
 ## Stack
 

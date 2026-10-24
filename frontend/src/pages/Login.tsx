@@ -38,17 +38,17 @@ export function Login() {
                 <ShieldCheck className="h-7 w-7 text-cyanx" />
               </motion.div>
               <div>
-                <h1 className="text-2xl font-bold text-white">CyberShield XDR</h1>
-                <p className="text-sm text-slate-400">Unified detection, response, and intelligence</p>
+                <h1 className="text-2xl font-bold text-white">Jenovate Security Operations</h1>
+                <p className="text-sm text-slate-400">LMS monitoring, investigation, and response</p>
               </div>
             </div>
             <div>
-              <div className="max-w-xl text-5xl font-bold leading-tight text-white">Command the full attack surface from one SOC console.</div>
+              <div className="max-w-xl text-4xl font-bold leading-tight text-white">Protect the learning platform from one focused security workspace.</div>
               <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
                 {[
-                  [Activity, "Real-time alerts"],
-                  [Radar, "MITRE mapping"],
-                  [ShieldCheck, "AI anomaly scoring"],
+                  [Activity, "Live LMS telemetry"],
+                  [Radar, "Investigation timelines"],
+                  [ShieldCheck, "Role-aware access"],
                 ].map(([Icon, item], index) => {
                   const IconComponent = Icon as typeof Activity;
                   return (
@@ -67,8 +67,8 @@ export function Login() {
             <div className="mb-6 flex items-center gap-3">
               <LockKeyhole className="h-5 w-5 text-cyanx" />
               <div>
-                <h2 className="text-xl font-semibold text-white">Secure Sign In</h2>
-                <p className="text-sm text-slate-400">JWT session with RBAC-ready claims</p>
+                <h2 className="text-xl font-semibold text-white">Security team sign in</h2>
+                <p className="text-sm text-slate-400">Use your assigned CyberShield role account.</p>
               </div>
             </div>
             <form onSubmit={submit} className="space-y-4">
@@ -76,7 +76,7 @@ export function Login() {
               <Input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" type="password" />
               <Input value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} placeholder="MFA code, if enabled" inputMode="numeric" />
               {error ? <div className="rounded-md border border-dangerx/40 bg-dangerx/10 p-3 text-sm text-red-100">{error}</div> : null}
-              <Button className="w-full" type="submit">Enter SOC</Button>
+              <Button className="w-full" type="submit">Open security workspace</Button>
             </form>
           </Card>
         </div>
